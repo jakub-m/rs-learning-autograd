@@ -3,19 +3,16 @@ use std::{collections::HashMap, ops};
 
 type F = f32;
 
-/// An arbitrary expression. The expressions form a computing graph.
-// pub trait Expr {
-//     /// Calculate expression given some state.
-//     fn forward(&self, state: &mut State) -> Forward;
-// }
-
 /// Expr is an enum so we can use it in HashMap in the State. The big drawback is that the enum is "closed"
 /// in a sense that it needs to know all the allowed expressions upfront.
 #[derive(PartialEq, Eq, Hash)]
 pub enum Expr<'a> {
     /// A named variable.
     Variable(String),
+    Add(&'a Expr<'a>, &'a Expr<'a>),
+    Sub(&'a Expr<'a>, &'a Expr<'a>),
     Div(&'a Expr<'a>, &'a Expr<'a>),
+    Mul(&'a Expr<'a>, &'a Expr<'a>),
     Sin(&'a Expr<'a>),
     Exp(&'a Expr<'a>),
 }
@@ -24,7 +21,7 @@ pub enum Expr<'a> {
 
 impl<'a, 'b> Expr<'a>
 where
-    'a: 'b, // 1': '2 means "1' must live at least as long as 2'"
+    'a: 'b, // The Expr ('a) needs to leave at least as long as the State ('b) that references that expression.
 {
     pub fn forward(&'a self, state: &'b mut State<'a>) -> Result<F, String> {
         if let Some(value) = state.forward_values.get(self) {
@@ -32,10 +29,25 @@ where
         } else {
             let result = match self {
                 Expr::Variable(name) => Err(format!("Variable {} is not set", name)),
+                Expr::Add(lhs, rhs) => {
+                    let a = lhs.forward(state)?;
+                    let b = rhs.forward(state)?;
+                    Ok(a + b)
+                }
+                Expr::Sub(lhs, rhs) => {
+                    let a = lhs.forward(state)?;
+                    let b = rhs.forward(state)?;
+                    Ok(a - b)
+                }
                 Expr::Div(lhs, rhs) => {
                     let a = lhs.forward(state)?;
                     let b = rhs.forward(state)?;
                     Ok(a / b)
+                }
+                Expr::Mul(lhs, rhs) => {
+                    let a = lhs.forward(state)?;
+                    let b = rhs.forward(state)?;
+                    Ok(a * b)
                 }
                 Expr::Sin(arg) => {
                     let arg = arg.forward(state)?;
@@ -87,40 +99,21 @@ impl<'a> From<&'a Variable> for Expr<'a> {
     }
 }
 
-//pub struct SubTerm<'a>(&'a dyn Expr, &'a dyn Expr);
-//
-//impl<'a> ops::Sub<&'a dyn Expr> for &'a dyn Expr {
-//    type Output = SubTerm<'a>;
-//
-//    fn sub(self, rhs: &'a dyn Expr) -> Self::Output {
-//        SubTerm(self, rhs)
-//    }
-//}
-//
-//impl<'a> Expr for SubTerm<'a> {}
-//pub struct AddTerm<'a>(&'a dyn Expr, &'a dyn Expr);
-//
-//impl<'a> ops::Add<&'a dyn Expr> for &'a dyn Expr {
-//    type Output = AddTerm<'a>;
-//
-//    fn add(self, rhs: &'a dyn Expr) -> Self::Output {
-//        AddTerm(self, rhs)
-//    }
-//}
-//
-//impl<'a> Expr for AddTerm<'a> {}
-//
-//pub struct MulTerm<'a>(&'a dyn Expr, &'a dyn Expr);
-//
-//impl<'a> ops::Mul<&'a dyn Expr> for &'a dyn Expr {
-//    type Output = MulTerm<'a>;
-//
-//    fn mul(self, rhs: &'a dyn Expr) -> Self::Output {
-//        MulTerm(self, rhs)
-//    }
-//}
-//
-//impl<'a> Expr for MulTerm<'a> {}
+impl<'a> ops::Add<&'a Expr<'a>> for &'a Expr<'a> {
+    type Output = Expr<'a>;
+
+    fn add(self, rhs: &'a Expr) -> Self::Output {
+        Expr::Add(self, rhs)
+    }
+}
+
+impl<'a> ops::Sub<&'a Expr<'a>> for &'a Expr<'a> {
+    type Output = Expr<'a>;
+
+    fn sub(self, rhs: &'a Expr) -> Self::Output {
+        Expr::Sub(self, rhs)
+    }
+}
 
 impl<'a> ops::Div<&'a Expr<'a>> for &'a Expr<'a> {
     type Output = Expr<'a>;
@@ -130,20 +123,19 @@ impl<'a> ops::Div<&'a Expr<'a>> for &'a Expr<'a> {
     }
 }
 
+impl<'a> ops::Mul<&'a Expr<'a>> for &'a Expr<'a> {
+    type Output = Expr<'a>;
+
+    fn mul(self, rhs: &'a Expr) -> Self::Output {
+        Expr::Mul(self, rhs)
+    }
+}
+
 pub fn sin<'a>(term: &'a Expr<'a>) -> Expr<'a> {
     Expr::Sin(term)
 }
 
-//pub struct SinTerm<'a>(&'a dyn Expr);
-//// value() {  sin (self.term.value)}
-//
-//impl<'a> Expr for SinTerm<'a> {
-//    fn forward(&self, state: &mut State) -> Forward {
-//        todo!()
-//    }
-//}
-//
-pub fn exp<'a>(term: &'a Expr<'a>) -> Expr {
+pub fn exp<'a>(term: &'a Expr<'a>) -> Expr<'a> {
     Expr::Exp(term)
 }
 
@@ -183,10 +175,9 @@ mod tests {
         let v1 = &vm1 / &v0;
         let v2 = sin(&v1);
         let v3 = exp(&v0);
-        //        let v4: &dyn Expr = &(v1 - v3);
-        //        let v5: &dyn Expr = &(v2 + v4);
-        //        let v6: &dyn Expr = &(v5 * v4);
-        //        let f = v6;
+        let v4 = &v1 - &v3;
+        let v5 = &v2 + &v4;
+        let v6 = &v5 * &v4;
 
         let mut state = State::new();
         state.set_expr_value(&vm1, 1.5); // TODO how to use x1?
@@ -194,7 +185,11 @@ mod tests {
         assert_eq!(v1.forward(&mut state), Ok(3.0));
         assert_almost_eq(v2.forward(&mut state).unwrap(), 0.141);
         assert_almost_eq(v3.forward(&mut state).unwrap(), 1.649);
+        assert_almost_eq(v4.forward(&mut state).unwrap(), 1.351);
+        assert_almost_eq(v5.forward(&mut state).unwrap(), 1.492);
+        assert_almost_eq(v6.forward(&mut state).unwrap(), 2.017);
         // todo below
+        // todo other tests
         //forward.value();
         //forward.dot();
     }
