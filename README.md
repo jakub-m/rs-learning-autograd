@@ -2,6 +2,10 @@
 
 My learning exercise to understand automatic gradient, and to exercise Rust.
 
+## Learnings, observations
+
+- Computation graph can be agnostic to the underlying representation of the value (if e.g. it is f32 or int).
+
 ## Materials
 
 - [What is Automatic Differentiation?](https://www.youtube.com/watch?v=wG_nF1awSSY)
@@ -10,5 +14,6 @@ My learning exercise to understand automatic gradient, and to exercise Rust.
 ## Possible TODOs
 
 - Implement reverse mode.
-- Make the computation generic w.r.t F, e.g. use f64 or use vectors.
 - Do not use enum but a reference to trait.
+- Implement gradient descent with this autograd
+- Train something

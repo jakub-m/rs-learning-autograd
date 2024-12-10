@@ -1,10 +1,24 @@
 //! Automatic gradient in forward mode.
-//! "dot" value means a derivate.
-
+//! The code works on any type that implements Algebraic.
+//! By convention, "dot" value means a derivate.
 use std::hash::Hash;
 use std::{collections::HashMap, ops};
 
-type F = f32;
+/// A type that can be used in computation.
+pub trait Algebraic:
+    Sized
+    + ops::Add<Output = Self>
+    + ops::Mul<Output = Self>
+    + ops::Sub<Output = Self>
+    + ops::Div<Output = Self>
+     // TODO don't use Copy nor Clone, especially when using arrays as output.
+    + Copy
+    + Clone
+{
+    fn cos(self) -> Self;
+    fn sin(self) -> Self;
+    fn exp(self) -> Self;
+}
 
 /// Expr is an enum so we can use it in HashMap in the State. The big drawback is that the enum is "closed"
 /// in a sense that it needs to know all the allowed expressions upfront.
@@ -26,7 +40,7 @@ where
 {
     /// Return value of the expression, and cache the value in the State. This way the same
     /// expression is not computed twice in the computing graph.
-    pub fn forward(&'a self, state: &'b mut State<'a>) -> Result<F, String> {
+    pub fn forward<F: Algebraic>(&'a self, state: &'b mut State<'a, F>) -> Result<F, String> {
         if let Some((value, _dot)) = state.values.get(self) {
             Ok(*value)
         } else {
@@ -70,7 +84,7 @@ where
     }
 
     /// Return cached derivate. One need to first run .forward to calculate the proper state.
-    pub fn dot(&'a self, state: &'b State<'a>) -> Result<F, String> {
+    pub fn dot<F: Algebraic>(&'a self, state: &'b State<'a, F>) -> Result<F, String> {
         state.values.get(self).map_or(
             Err(format!(
                 "Missing dot for state, did you forget to run .forward()?"
@@ -81,13 +95,17 @@ where
 }
 
 /// A helper function to get forward and dot values for an expression.
-fn get_fd1<'a, 'b>(state: &'a mut State<'b>, v1: &'b Expr) -> Result<(F, F), String> {
+fn get_fd1<'a, 'b, F: Algebraic>(
+    state: &'a mut State<'b, F>,
+    v1: &'b Expr,
+) -> Result<(F, F), String> {
     let f1 = v1.forward(state)?;
     let d1 = v1.dot(state)?;
     Ok((f1, d1))
 }
-fn get_fd2<'a, 'b>(
-    state: &'a mut State<'b>,
+
+fn get_fd2<'a, 'b, F: Algebraic>(
+    state: &'a mut State<'b, F>,
     v1: &'b Expr,
     v2: &'b Expr,
 ) -> Result<((F, F), (F, F)), String> {
@@ -98,13 +116,16 @@ fn get_fd2<'a, 'b>(
     Ok(((f1, d1), (f2, d2)))
 }
 
-pub struct State<'a> {
+pub struct State<'a, F: Algebraic> {
     /// The pair of forward value and dot value.
     values: HashMap<&'a Expr<'a>, (F, F)>,
 }
 
-impl<'a> State<'a> {
-    pub fn new() -> State<'a> {
+impl<'a, F> State<'a, F>
+where
+    F: Algebraic,
+{
+    pub fn new() -> State<'a, F> {
         State {
             values: HashMap::new(),
         }
@@ -174,6 +195,20 @@ pub fn exp<'a>(term: &'a Expr<'a>) -> Expr<'a> {
     Expr::Exp(term)
 }
 
+impl Algebraic for f32 {
+    fn sin(self) -> Self {
+        self.sin()
+    }
+
+    fn exp(self) -> Self {
+        self.exp()
+    }
+
+    fn cos(self) -> Self {
+        self.cos()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -201,7 +236,7 @@ mod tests {
         let v5 = &v2 + &v4;
         let v6 = &v5 * &v4;
 
-        let mut state = State::new();
+        let mut state = State::<f32>::new();
         state.set_expr_value(&vm1, 1.5, 1.0); // TODO how to use x1 instead of vm1? Deref?
         state.set_expr_value(&v0, 0.5, 0.0);
         assert_eq!(v1.forward(&mut state), Ok(3.0));
