@@ -48,24 +48,32 @@ where
                     Ok(((a * b), d))
                 }
                 Expr::Sin(arg) => {
-                    let arg = arg.forward(state)?;
-                    Ok(((arg.sin()), 0.0)) // todo
+                    let (a, a_dot) = get_fd1(state, arg)?;
+                    // Per chain rule:
+                    // sin(f(x))' = cos(f(x)) * f'(x)
+                    let d = a.cos() * a_dot;
+                    Ok((a.sin(), d))
                 }
                 Expr::Exp(arg) => {
-                    let arg = arg.forward(state)?;
-                    Ok(((arg.exp()), 0.0)) // todo
+                    let (a, a_dot) = get_fd1(state, arg)?;
+                    let a_exp = a.exp();
+                    let d = a_exp * a_dot;
+                    Ok((a_exp, d))
                 }
             }?;
-            state.set_expr_value(self, result);
+            state.set_expr_value(self, result, dot);
             Ok(result)
         }
     }
 
     /// Return cached derivate. One need to first run .forward to calculate the proper state.
-    pub fn dot(&'a self, state: &'b mut State<'a>) -> Result<F, String> {
-        //
-        //todo!()
-        Ok(0.0)
+    pub fn dot(&'a self, state: &'b State<'a>) -> Result<F, String> {
+        state.dot_values.get(self).map_or(
+            Err(format!(
+                "Missing dot for state, did you forget to run .forward()?"
+            )),
+            |value| Ok(*value),
+        )
     }
 }
 
@@ -87,19 +95,21 @@ fn get_fd2<'a, 'b>(
     Ok(((f1, d1), (f2, d2)))
 }
 
-struct State<'a> {
+pub struct State<'a> {
     forward_values: HashMap<&'a Expr<'a>, F>,
-    //dot_values: HashMap<&'a Expr<'a>, F>,
+    dot_values: HashMap<&'a Expr<'a>, F>,
 }
 
 impl<'a> State<'a> {
     pub fn new() -> State<'a> {
         State {
             forward_values: HashMap::new(),
+            dot_values: HashMap::new(), // todo use single hash map only
         }
     }
-    pub fn set_expr_value(&mut self, expr: &'a Expr, value: F) {
+    pub fn set_expr_value(&mut self, expr: &'a Expr, value: F, dot: F) {
         self.forward_values.insert(expr, value);
+        self.dot_values.insert(expr, dot);
     }
 }
 
@@ -163,10 +173,6 @@ pub fn exp<'a>(term: &'a Expr<'a>) -> Expr<'a> {
     Expr::Exp(term)
 }
 
-//pub struct ExpTerm<'a>(&'a dyn Expr);
-//
-//impl<'a> Expr for ExpTerm<'a> {}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -195,8 +201,8 @@ mod tests {
         let v6 = &v5 * &v4;
 
         let mut state = State::new();
-        state.set_expr_value(&vm1, 1.5); // TODO how to use x1?
-        state.set_expr_value(&v0, 0.5);
+        state.set_expr_value(&vm1, 1.5, 1.0); // TODO how to use x1 instead of vm1? Deref?
+        state.set_expr_value(&v0, 0.5, 0.0);
         assert_eq!(v1.forward(&mut state), Ok(3.0));
         assert_almost_eq(v2.forward(&mut state).unwrap(), 0.141);
         assert_almost_eq(v3.forward(&mut state).unwrap(), 1.649);
@@ -204,10 +210,14 @@ mod tests {
         assert_almost_eq(v5.forward(&mut state).unwrap(), 1.492);
         assert_almost_eq(v6.forward(&mut state).unwrap(), 2.017);
 
-        // todo below
-        // todo other tests
-        //forward.value();
-        //forward.dot();
+        assert_almost_eq(vm1.dot(&state).unwrap(), 1.000);
+        assert_almost_eq(v0.dot(&state).unwrap(), 0.000);
+        assert_almost_eq(v1.dot(&state).unwrap(), 2.000);
+        assert_almost_eq(v2.dot(&state).unwrap(), -1.980);
+        assert_almost_eq(v3.dot(&state).unwrap(), 0.000);
+        assert_almost_eq(v4.dot(&state).unwrap(), 2.000);
+        assert_almost_eq(v5.dot(&state).unwrap(), 0.020);
+        assert_almost_eq(v6.dot(&state).unwrap(), 3.012);
     }
 
     fn assert_almost_eq(f1: f32, f2: f32) {
