@@ -1,3 +1,5 @@
+//! Automatic gradient in forward mode.
+
 use std::hash::Hash;
 use std::{collections::HashMap, ops};
 
