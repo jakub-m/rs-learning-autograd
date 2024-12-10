@@ -10,5 +10,5 @@ My learning exercise to understand automatic gradient, and to exercise Rust.
 ## Possible TODOs
 
 - Implement reverse mode.
-- In forward mode, use single hash map.
 - Make the computation generic w.r.t F, e.g. use f64 or use vectors.
+- Do not use enum but a reference to trait.

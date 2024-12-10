@@ -1,4 +1,5 @@
 //! Automatic gradient in forward mode.
+//! "dot" value means a derivate.
 
 use std::hash::Hash;
 use std::{collections::HashMap, ops};
@@ -26,7 +27,7 @@ where
     /// Return value of the expression, and cache the value in the State. This way the same
     /// expression is not computed twice in the computing graph.
     pub fn forward(&'a self, state: &'b mut State<'a>) -> Result<F, String> {
-        if let Some(value) = state.forward_values.get(self) {
+        if let Some((value, _dot)) = state.values.get(self) {
             Ok(*value)
         } else {
             let (result, dot) = match self {
@@ -70,11 +71,11 @@ where
 
     /// Return cached derivate. One need to first run .forward to calculate the proper state.
     pub fn dot(&'a self, state: &'b State<'a>) -> Result<F, String> {
-        state.dot_values.get(self).map_or(
+        state.values.get(self).map_or(
             Err(format!(
                 "Missing dot for state, did you forget to run .forward()?"
             )),
-            |value| Ok(*value),
+            |(_value, dot)| Ok(*dot),
         )
     }
 }
@@ -98,20 +99,18 @@ fn get_fd2<'a, 'b>(
 }
 
 pub struct State<'a> {
-    forward_values: HashMap<&'a Expr<'a>, F>,
-    dot_values: HashMap<&'a Expr<'a>, F>,
+    /// The pair of forward value and dot value.
+    values: HashMap<&'a Expr<'a>, (F, F)>,
 }
 
 impl<'a> State<'a> {
     pub fn new() -> State<'a> {
         State {
-            forward_values: HashMap::new(),
-            dot_values: HashMap::new(), // todo use single hash map only
+            values: HashMap::new(),
         }
     }
     pub fn set_expr_value(&mut self, expr: &'a Expr, value: F, dot: F) {
-        self.forward_values.insert(expr, value);
-        self.dot_values.insert(expr, dot);
+        self.values.insert(expr, (value, dot));
     }
 }
 
