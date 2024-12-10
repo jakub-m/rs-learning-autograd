@@ -17,55 +17,79 @@ pub enum Expr<'a> {
     Exp(&'a Expr<'a>),
 }
 
-// struct Forward {}
-
 impl<'a, 'b> Expr<'a>
 where
     'a: 'b, // The Expr ('a) needs to leave at least as long as the State ('b) that references that expression.
 {
+    /// Return value of the expression, and cache the value in the State. This way the same
+    /// expression is not computed twice in the computing graph.
     pub fn forward(&'a self, state: &'b mut State<'a>) -> Result<F, String> {
         if let Some(value) = state.forward_values.get(self) {
             Ok(*value)
         } else {
-            let result = match self {
+            let (result, dot) = match self {
                 Expr::Variable(name) => Err(format!("Variable {} is not set", name)),
                 Expr::Add(lhs, rhs) => {
-                    let a = lhs.forward(state)?;
-                    let b = rhs.forward(state)?;
-                    Ok(a + b)
+                    let ((a, a_dot), (b, b_dot)) = get_fd2(state, lhs, rhs)?;
+                    Ok(((a + b), (a_dot + b_dot)))
                 }
                 Expr::Sub(lhs, rhs) => {
-                    let a = lhs.forward(state)?;
-                    let b = rhs.forward(state)?;
-                    Ok(a - b)
+                    let ((a, a_dot), (b, b_dot)) = get_fd2(state, lhs, rhs)?;
+                    Ok(((a - b), (a_dot - b_dot)))
                 }
                 Expr::Div(lhs, rhs) => {
-                    let a = lhs.forward(state)?;
-                    let b = rhs.forward(state)?;
-                    Ok(a / b)
+                    let ((a, a_dot), (b, b_dot)) = get_fd2(state, lhs, rhs)?;
+                    let d = (a_dot * b - a * b_dot) / (b * b);
+                    Ok(((a / b), d))
                 }
                 Expr::Mul(lhs, rhs) => {
-                    let a = lhs.forward(state)?;
-                    let b = rhs.forward(state)?;
-                    Ok(a * b)
+                    let ((a, a_dot), (b, b_dot)) = get_fd2(state, lhs, rhs)?;
+                    let d = a * b_dot + a_dot * b;
+                    Ok(((a * b), d))
                 }
                 Expr::Sin(arg) => {
                     let arg = arg.forward(state)?;
-                    Ok(arg.sin())
+                    Ok(((arg.sin()), 0.0)) // todo
                 }
                 Expr::Exp(arg) => {
                     let arg = arg.forward(state)?;
-                    Ok(arg.exp())
+                    Ok(((arg.exp()), 0.0)) // todo
                 }
             }?;
             state.set_expr_value(self, result);
             Ok(result)
         }
     }
+
+    /// Return cached derivate. One need to first run .forward to calculate the proper state.
+    pub fn dot(&'a self, state: &'b mut State<'a>) -> Result<F, String> {
+        //
+        //todo!()
+        Ok(0.0)
+    }
+}
+
+/// A helper function to get forward and dot values for an expression.
+fn get_fd1<'a, 'b>(state: &'a mut State<'b>, v1: &'b Expr) -> Result<(F, F), String> {
+    let f1 = v1.forward(state)?;
+    let d1 = v1.dot(state)?;
+    Ok((f1, d1))
+}
+fn get_fd2<'a, 'b>(
+    state: &'a mut State<'b>,
+    v1: &'b Expr,
+    v2: &'b Expr,
+) -> Result<((F, F), (F, F)), String> {
+    let f1 = v1.forward(state)?;
+    let d1 = v1.dot(state)?;
+    let f2 = v2.forward(state)?;
+    let d2 = v2.dot(state)?;
+    Ok(((f1, d1), (f2, d2)))
 }
 
 struct State<'a> {
     forward_values: HashMap<&'a Expr<'a>, F>,
+    //dot_values: HashMap<&'a Expr<'a>, F>,
 }
 
 impl<'a> State<'a> {
@@ -147,16 +171,8 @@ pub fn exp<'a>(term: &'a Expr<'a>) -> Expr<'a> {
 mod tests {
     use super::*;
 
-    //#[test]
-    //fn simple1() {
-    //    let x = Variable(3.0);
-    //    let a = Param(1.0);
-    //    let b = Param(0.0);
-    //    let y = a * x + b;
-    //    assert_eq!(y.value(), 3)
-    //}
-
-    ///https://youtu.be/wG_nF1awSSY?si=kd5Ny4055k3mXc8r&t=366
+    /// Test from
+    /// https://youtu.be/wG_nF1awSSY?si=kd5Ny4055k3mXc8r&t=366
     ///```
     ///f(x1, x2) = [sin(x1/x2) + x1/x2 - exp(x2)] x [x1/x2-exp(x2)]
     ///  vm1 v0         --v1-    -v1-                --v1-
@@ -167,7 +183,6 @@ mod tests {
     ///```
     #[test]
     fn yt1() {
-        // TODO how to use reference or pass ownership to computing graph? How to use Rc?
         let x1 = Variable::new("x1");
         let vm1: Expr = (&x1).into();
         let x2 = Variable::new("x2");
@@ -188,6 +203,7 @@ mod tests {
         assert_almost_eq(v4.forward(&mut state).unwrap(), 1.351);
         assert_almost_eq(v5.forward(&mut state).unwrap(), 1.492);
         assert_almost_eq(v6.forward(&mut state).unwrap(), 2.017);
+
         // todo below
         // todo other tests
         //forward.value();
