@@ -13,6 +13,7 @@ My learning exercise to understand automatic gradient, and to exercise Rust.
 
 ## Possible TODOs
 
+- Compute partial derivates and outputs for all inputs at once.
 - Implement reverse mode.
 - Do not use enum but a reference to trait.
 - Implement gradient descent with this autograd

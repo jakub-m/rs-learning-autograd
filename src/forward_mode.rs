@@ -15,17 +15,25 @@ pub trait Algebraic:
     + Copy
     + Clone
 {
-    fn cos(self) -> Self;
-    fn sin(self) -> Self;
-    fn exp(self) -> Self;
+    fn cos(self) -> Self {
+        unimplemented!()
+    }
+
+    fn sin(self) -> Self {
+        unimplemented!()
+    }
+
+    fn exp(self) -> Self {
+        unimplemented!()
+    }
 }
 
 /// Expr is an enum so we can use it in HashMap in the State. The big drawback is that the enum is "closed"
 /// in a sense that it needs to know all the allowed expressions upfront.
-#[derive(PartialEq, Eq, Hash)]
+#[derive(PartialEq, Eq, Hash, Clone)]
 pub enum Expr<'a> {
     /// A named variable.
-    Variable(String),
+    Variable(String), // Todo use str and make Expr Copy?
     Add(&'a Expr<'a>, &'a Expr<'a>),
     Sub(&'a Expr<'a>, &'a Expr<'a>),
     Div(&'a Expr<'a>, &'a Expr<'a>),
@@ -137,15 +145,19 @@ where
 
 /// An input variable, with its name. Two variables with the same name are the same variable. An utility shim over Expr
 /// So the user does not need to operate on Expr.
-struct Variable(String);
+pub struct Variable(String);
 
 impl Variable {
-    fn new(name: &str) -> Variable {
+    pub fn new(name: &str) -> Variable {
         Variable(name.to_owned())
     }
 
-    fn name(&self) -> &str {
+    pub fn name(&self) -> &str {
         return self.0.as_str();
+    }
+
+    pub fn as_expr<'a>(self) -> Expr<'a> {
+        Expr::Variable(self.name().to_owned())
     }
 }
 
@@ -154,6 +166,12 @@ impl<'a> From<&'a Variable> for Expr<'a> {
         Expr::Variable(variable.name().to_owned())
     }
 }
+
+//impl<'a> From<&'a Variable> for &'a Expr<'a> {
+//    fn from(variable: &'a Variable) -> Self {
+//        &Expr::Variable(variable.name().to_owned())
+//    }
+//}
 
 impl<'a> ops::Add<&'a Expr<'a>> for &'a Expr<'a> {
     type Output = Expr<'a>;
@@ -237,7 +255,7 @@ mod tests {
         let v6 = &v5 * &v4;
 
         let mut state = State::<f32>::new();
-        state.set_expr_value(&vm1, 1.5, 1.0); // TODO how to use x1 instead of vm1? Deref?
+        state.set_expr_value(&vm1, 1.5, 1.0);
         state.set_expr_value(&v0, 0.5, 0.0);
         assert_eq!(v1.forward(&mut state), Ok(3.0));
         assert_almost_eq(v2.forward(&mut state).unwrap(), 0.141);
