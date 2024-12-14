@@ -27,18 +27,20 @@ impl<'a> Expr<'a> {
         node: &Node,
         indent: usize,
     ) -> fmt::Result {
-        for _ in 0..indent {
-            write!(f, " ")?
-        }
+        //for _ in 0..indent {
+        //    write!(f, " ")?
+        //}
         let map = self.eb.map.borrow();
         match node {
-            Node::Variable(ident) => write!(f, "{}\n", ident.0)?,
+            Node::Variable(ident) => write!(f, "{}", ident.0)?,
             Node::Add(ident1, ident2) => {
-                write!(f, "+\n")?;
                 let node1 = map.get(ident1).ok_or(fmt::Error)?;
                 let node2 = map.get(ident2).ok_or(fmt::Error)?;
+                write!(f, "(+ ")?;
                 self.fmt_node_indent(f, &node1, indent + 1)?;
+                write!(f, " ")?;
                 self.fmt_node_indent(f, &node2, indent + 1)?;
+                write!(f, ")")?;
             }
         };
         Ok(())
