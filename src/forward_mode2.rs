@@ -1,48 +1,105 @@
-use std::hash::Hash;
-use std::ops;
-use std::rc::Rc;
+use std::cell::RefCell;
+use std::collections::{BTreeMap, HashMap};
+use std::fmt;
+use std::ops::Add;
 
-#[derive(PartialEq, Eq, Hash, Clone)]
-pub enum Expr {
-    Variable(usize),
-    Add(Rc<Expr>, Rc<Expr>),
-    Mul(Rc<Expr>, Rc<Expr>),
+#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Debug)]
+pub struct Ident(usize);
+
+#[derive(Debug)]
+pub enum Node {
+    Variable(Ident),
+    Add(Ident, Ident),
 }
 
-#[derive(Clone)]
-pub struct ExprRef(Rc<Expr>);
+/// An identifier coupled with a reference to ExprBuilder, so it can be later used in further arithmetic operations.
+#[derive(Clone, Copy, Debug)]
+pub struct Expr<'a> {
+    // eb cannot be mut because mut is not Clone, therefore is not Copy, and we want Copy.
+    eb: &'a ExprBuilder,
+    ident: Ident,
+}
 
-pub struct Variable(usize);
-
-impl Variable {
-    pub fn new(ident: usize) -> Variable {
-        Variable(ident)
-    }
-
-    pub fn as_expr(self) -> ExprRef {
-        ExprRef(Rc::new(Expr::Variable(self.0)))
+impl<'a> Expr<'a> {
+    fn fmt_node_indent(
+        &self,
+        f: &mut fmt::Formatter<'_>,
+        node: &Node,
+        indent: usize,
+    ) -> fmt::Result {
+        for _ in 0..indent {
+            write!(f, " ")?
+        }
+        let map = self.eb.map.borrow();
+        match node {
+            Node::Variable(ident) => write!(f, "{}\n", ident.0)?,
+            Node::Add(ident1, ident2) => {
+                write!(f, "+\n")?;
+                let node1 = map.get(ident1).ok_or(fmt::Error)?;
+                let node2 = map.get(ident2).ok_or(fmt::Error)?;
+                self.fmt_node_indent(f, &node1, indent + 1)?;
+                self.fmt_node_indent(f, &node2, indent + 1)?;
+            }
+        };
+        Ok(())
     }
 }
 
-impl From<Variable> for Expr {
-    fn from(variable: Variable) -> Self {
-        Expr::Variable(variable.0)
+impl<'a> fmt::Display for Expr<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        //self.fmt_indent(f, 0)
+        let map = self.eb.map.borrow();
+        let node = map.get(&self.ident).ok_or(fmt::Error)?;
+        self.fmt_node_indent(f, &node, 0)
     }
 }
 
-impl<'a> ops::Add<&'a ExprRef> for &'a ExprRef {
-    type Output = ExprRef;
+#[derive(Debug)]
+struct ExprBuilder {
+    /// The map contains expression trees with references.
+    map: RefCell<BTreeMap<Ident, Node>>,
+}
 
-    fn add(self, rhs: &'a ExprRef) -> Self::Output {
-        ExprRef(Rc::new(Expr::Add(Rc::clone(&self.0), Rc::clone(&rhs.0))))
+impl<'a> ExprBuilder {
+    pub fn new() -> ExprBuilder {
+        ExprBuilder {
+            map: RefCell::new(BTreeMap::new()),
+        }
+    }
+
+    pub fn new_variable(&'a self) -> Expr<'a> {
+        let ident = self.new_ident();
+        let node = Node::Variable(ident);
+        let mut map = self.map.borrow_mut();
+        map.insert(ident, node);
+        Expr { eb: &self, ident }
+    }
+
+    /// register is a mutable operation on self.map. `register` is not explicitly mut, to allow Copy and
+    /// ergonomic arithmetic syntax.
+    fn register(&self, node: Node) -> Ident {
+        let ident = self.new_ident();
+        let mut map = self.map.borrow_mut();
+        map.insert(ident, node);
+        ident
+    }
+
+    pub fn freeze(&self) -> Node {
+        todo!();
+    }
+
+    fn new_ident(&self) -> Ident {
+        Ident(self.map.borrow().len())
     }
 }
 
-impl<'a> ops::Mul<&'a ExprRef> for &'a ExprRef {
-    type Output = ExprRef;
+impl<'a> Add for Expr<'a> {
+    type Output = Expr<'a>;
 
-    fn mul(self, rhs: &'a ExprRef) -> Self::Output {
-        ExprRef(Rc::new(Expr::Mul(Rc::clone(&self.0), Rc::clone(&rhs.0))))
+    fn add(self, rhs: Self) -> Self::Output {
+        let node = Node::Add(self.ident, rhs.ident);
+        let ident = self.eb.register(node);
+        Expr { ident, eb: self.eb }
     }
 }
 
@@ -52,9 +109,13 @@ mod tests {
 
     #[test]
     fn syntax() {
-        let x1 = &Variable::new(1).as_expr();
-        let x2 = &Variable::new(2).as_expr();
-        let zzz = &(x1 + x2) * x1;
-        // I want to avoid .clone(), and just have Copy-able ergonomic expression like (x1 + x2) * x1.
+        let eb = ExprBuilder::new();
+        let x1 = eb.new_variable();
+        let x2 = eb.new_variable();
+        let x3 = x1 + x2;
+        let x4 = x1 + x2;
+        let z = x1 + x2 + x3 + x4;
+        //assert!(false, "{}", x3);
+        assert!(false, "{}", z);
     }
 }
