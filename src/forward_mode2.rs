@@ -1,15 +1,22 @@
 use std::cell::RefCell;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashSet};
 use std::fmt;
-use std::ops::Add;
+use std::ops;
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Debug)]
 pub struct Ident(usize);
+
+/// A generic expressionError
+//#[derive(Clone, Debug)]
+//pub struct ExprError(String);
+//
+//pub type ExprResult = Result<(), ExprError>;
 
 #[derive(Debug)]
 pub enum Node {
     Variable(Ident),
     Add(Ident, Ident),
+    Mul(Ident, Ident),
 }
 
 /// An identifier coupled with a reference to ExprBuilder, so it can be later used in further arithmetic operations.
@@ -21,25 +28,35 @@ pub struct Expr<'a> {
 }
 
 impl<'a> Expr<'a> {
-    fn fmt_node_indent(
-        &self,
-        f: &mut fmt::Formatter<'_>,
-        node: &Node,
-        indent: usize,
-    ) -> fmt::Result {
-        //for _ in 0..indent {
-        //    write!(f, " ")?
-        //}
-        let map = self.eb.map.borrow();
+    fn fmt_node(&self, f: &mut fmt::Formatter<'_>, node: &Node) -> fmt::Result {
+        let id_to_node = self.eb.id_to_node.borrow();
         match node {
-            Node::Variable(ident) => write!(f, "{}", ident.0)?,
+            Node::Variable(ident) => {
+                let name = self
+                    .eb
+                    .id_to_name
+                    .borrow()
+                    .get(ident)
+                    .expect(format!("Variable with {:?} does not exist", ident).as_str())
+                    .to_owned();
+                write!(f, "{}", name)?;
+            }
             Node::Add(ident1, ident2) => {
-                let node1 = map.get(ident1).ok_or(fmt::Error)?;
-                let node2 = map.get(ident2).ok_or(fmt::Error)?;
+                let node1 = id_to_node.get(ident1).ok_or(fmt::Error)?;
+                let node2 = id_to_node.get(ident2).ok_or(fmt::Error)?;
                 write!(f, "(+ ")?;
-                self.fmt_node_indent(f, &node1, indent + 1)?;
+                self.fmt_node(f, &node1)?;
                 write!(f, " ")?;
-                self.fmt_node_indent(f, &node2, indent + 1)?;
+                self.fmt_node(f, &node2)?;
+                write!(f, ")")?;
+            }
+            Node::Mul(ident1, ident2) => {
+                let node1 = id_to_node.get(ident1).ok_or(fmt::Error)?;
+                let node2 = id_to_node.get(ident2).ok_or(fmt::Error)?;
+                write!(f, "(* ")?;
+                self.fmt_node(f, &node1)?;
+                write!(f, " ")?;
+                self.fmt_node(f, &node2)?;
                 write!(f, ")")?;
             }
         };
@@ -50,30 +67,48 @@ impl<'a> Expr<'a> {
 impl<'a> fmt::Display for Expr<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         //self.fmt_indent(f, 0)
-        let map = self.eb.map.borrow();
+        let map = self.eb.id_to_node.borrow();
         let node = map.get(&self.ident).ok_or(fmt::Error)?;
-        self.fmt_node_indent(f, &node, 0)
+        self.fmt_node(f, &node)
     }
 }
 
 #[derive(Debug)]
 struct ExprBuilder {
     /// The map contains expression trees with references.
-    map: RefCell<BTreeMap<Ident, Node>>,
+    id_to_node: RefCell<BTreeMap<Ident, Node>>,
+    id_to_name: RefCell<BTreeMap<Ident, String>>,
+    name_set: RefCell<HashSet<String>>,
 }
 
 impl<'a> ExprBuilder {
     pub fn new() -> ExprBuilder {
         ExprBuilder {
-            map: RefCell::new(BTreeMap::new()),
+            id_to_node: RefCell::new(BTreeMap::new()),
+            id_to_name: RefCell::new(BTreeMap::new()),
+            name_set: RefCell::new(HashSet::new()),
         }
     }
 
-    pub fn new_variable(&'a self) -> Expr<'a> {
+    pub fn new_variable(&'a self, name: &str) -> Expr<'a> {
         let ident = self.new_ident();
+
+        let mut id_to_name = self.id_to_name.borrow_mut();
+        if let Some(old_name) = id_to_name.insert(ident, name.to_owned()) {
+            panic!(
+                "Variable for  {:?} already exists with name {}",
+                ident, old_name
+            );
+        }
+
+        let mut name_set = self.name_set.borrow_mut();
+        if !name_set.insert(name.to_owned()) {
+            panic!("Variable with name {} already exists", name)
+        }
+
         let node = Node::Variable(ident);
-        let mut map = self.map.borrow_mut();
-        map.insert(ident, node);
+        let mut id_to_node = self.id_to_node.borrow_mut();
+        id_to_node.insert(ident, node);
         Expr { eb: &self, ident }
     }
 
@@ -81,7 +116,7 @@ impl<'a> ExprBuilder {
     /// ergonomic arithmetic syntax.
     fn register(&self, node: Node) -> Ident {
         let ident = self.new_ident();
-        let mut map = self.map.borrow_mut();
+        let mut map = self.id_to_node.borrow_mut();
         map.insert(ident, node);
         ident
     }
@@ -91,15 +126,25 @@ impl<'a> ExprBuilder {
     }
 
     fn new_ident(&self) -> Ident {
-        Ident(self.map.borrow().len())
+        Ident(self.id_to_node.borrow().len())
     }
 }
 
-impl<'a> Add for Expr<'a> {
+impl<'a> ops::Add for Expr<'a> {
     type Output = Expr<'a>;
 
     fn add(self, rhs: Self) -> Self::Output {
         let node = Node::Add(self.ident, rhs.ident);
+        let ident = self.eb.register(node);
+        Expr { ident, eb: self.eb }
+    }
+}
+
+impl<'a> ops::Mul for Expr<'a> {
+    type Output = Expr<'a>;
+
+    fn mul(self, rhs: Self) -> Self::Output {
+        let node = Node::Mul(self.ident, rhs.ident);
         let ident = self.eb.register(node);
         Expr { ident, eb: self.eb }
     }
@@ -112,12 +157,11 @@ mod tests {
     #[test]
     fn syntax() {
         let eb = ExprBuilder::new();
-        let x1 = eb.new_variable();
-        let x2 = eb.new_variable();
+        let x1 = eb.new_variable("x1");
+        let x2 = eb.new_variable("x2");
         let x3 = x1 + x2;
         let x4 = x1 + x2;
-        let z = x1 + x2 + x3 + x4;
-        //assert!(false, "{}", x3);
+        let z = x1 + x2 * x3 + x4;
         assert!(false, "{}", z);
     }
 }
