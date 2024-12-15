@@ -1,9 +1,10 @@
 use std::cell::RefCell;
 use std::collections::{BTreeMap, HashSet};
+use std::env::var;
 use std::fmt;
 use std::ops;
 
-#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Debug)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Debug, Hash)]
 pub struct Ident(usize);
 
 /// A generic expressionError
@@ -12,7 +13,7 @@ pub struct Ident(usize);
 //
 //pub type ExprResult = Result<(), ExprError>;
 
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Node {
     Variable(Ident),
     Add(Ident, Ident),
@@ -62,11 +63,14 @@ impl<'a> Expr<'a> {
         };
         Ok(())
     }
+
+    pub fn ident(&self) -> Ident {
+        self.ident
+    }
 }
 
 impl<'a> fmt::Display for Expr<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        //self.fmt_indent(f, 0)
         let map = self.eb.id_to_node.borrow();
         let node = map.get(&self.ident).ok_or(fmt::Error)?;
         self.fmt_node(f, &node)
@@ -121,12 +125,70 @@ impl<'a> ExprBuilder {
         ident
     }
 
-    pub fn freeze(&self) -> Node {
-        todo!();
-    }
-
     fn new_ident(&self) -> Ident {
         Ident(self.id_to_node.borrow().len())
+    }
+}
+
+pub struct ComputeGraph {
+    id_to_node: RefCell<BTreeMap<Ident, Node>>,
+    id_to_name: RefCell<BTreeMap<Ident, String>>,
+}
+
+impl ComputeGraph {
+    pub fn set_variable<F>(&self, state: &mut State<F>, ident: &Ident, value: F) {
+        let id_to_node = self.id_to_node.borrow();
+        let node = id_to_node
+            .get(ident)
+            .expect(format!("No such ident {:?}", ident).as_ref());
+        if let Node::Variable(got_ident) = node {
+            if ident != got_ident {
+                panic!("Idents not equal, a bug?")
+            }
+        } else {
+            panic!("Ident is not a variable");
+        }
+        if let Some(_) = state.primals.insert(*ident, value) {
+            panic!("Ident already set")
+        }
+    }
+
+    pub fn compute<'a, F>(&self, ident: &Ident, state: &'a mut State<F>) -> &'a F
+    where
+        F: ops::Add<Output = F> + Copy,
+    {
+        if let Some(value) = state.primals.get(ident) {
+            return value;
+        };
+        //let id_to_node = self.id_to_node.borrow();
+        //let node = id_to_node.get(ident).expect("No such ident");
+        //// TODO change Add, Mul, etc to Ary0, Ary1 and Ary2 nodes.
+        //let value = match node {
+        //    Node::Variable(variable_ident) => {
+        //        assert_eq!(ident, variable_ident);
+        //        *state
+        //            .primals
+        //            .get(ident)
+        //            .expect("Variable ident not in primals")
+        //    }
+        //    Node::Add(ident1, ident2) => {
+        //        let value1 = self.compute(ident1, state);
+        //        let value2 = self.compute(ident2, state);
+        //        (*value1 + *value2)
+        //    }
+        //    Node::Mul(ident1, ident2) => todo!(),
+        //};
+        todo!()
+        //
+    }
+}
+
+impl ExprBuilder {
+    pub fn freeze(self) -> ComputeGraph {
+        ComputeGraph {
+            id_to_node: self.id_to_node,
+            id_to_name: self.id_to_name,
+        }
     }
 }
 
@@ -150,6 +212,22 @@ impl<'a> ops::Mul for Expr<'a> {
     }
 }
 
+pub struct State<F> {
+    pub(crate) primals: BTreeMap<Ident, F>,
+}
+
+impl<F> State<F> {
+    pub fn new() -> State<F> {
+        State {
+            primals: BTreeMap::new(),
+        }
+    }
+
+    pub fn get(&self, ident: &Ident) -> Option<&F> {
+        self.primals.get(ident)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -162,6 +240,25 @@ mod tests {
         let x3 = x1 + x2;
         let x4 = x1 + x2;
         let z = x1 + x2 * x3 + x4;
-        assert!(false, "{}", z);
+        assert_eq!("(+ (+ x1 (* x2 (+ x1 x2))) (+ x1 x2))", format!("{}", z));
+    }
+
+    #[test]
+    fn forward_add_mul() {
+        let eb = ExprBuilder::new();
+        let x1 = eb.new_variable("x1");
+        let x2 = eb.new_variable("x2");
+        let y = x1 + x2 * x1 + x2;
+
+        // Operate on frozen graph.
+        let x1 = &x1.ident();
+        let x2 = &x2.ident();
+        let y = &y.ident();
+        let graph = eb.freeze();
+        let mut state = State::<f64>::new();
+        graph.set_variable(&mut state, &x1, 2.0);
+        graph.set_variable(&mut state, &x2, 3.0);
+        graph.compute(y, s);
+        //assert_eq!(graph.get_forward(y, s).to_owned(), 11.0);
     }
 }

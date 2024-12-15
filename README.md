@@ -8,7 +8,8 @@ My learning exercise to understand automatic gradient, and to exercise Rust.
 
 ## Materials
 
-- [What is Automatic Differentiation?](https://www.youtube.com/watch?v=wG_nF1awSSY)
+- [Hugging Face: What's Automatic Differentiation?](https://huggingface.co/blog/andmholm/what-is-automatic-differentiation)
+- [YT: What is Automatic Differentiation?](https://www.youtube.com/watch?v=wG_nF1awSSY)
 - [Demystifying AutoGrad in Machine Learning](https://medium.com/@weidagang/demystifying-autograd-in-machine-learning-eb7d5c875ff2)
 
 ## Possible TODOs
