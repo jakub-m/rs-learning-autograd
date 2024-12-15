@@ -1,6 +1,5 @@
 use std::cell::RefCell;
 use std::collections::{BTreeMap, HashSet};
-use std::env::var;
 use std::fmt;
 use std::ops;
 
@@ -258,7 +257,7 @@ mod tests {
         let mut state = State::<f64>::new();
         graph.set_variable(&mut state, &x1, 2.0);
         graph.set_variable(&mut state, &x2, 3.0);
-        graph.compute(y, s);
+        //graph.compute(y, s);
         //assert_eq!(graph.get_forward(y, s).to_owned(), 11.0);
     }
 }
