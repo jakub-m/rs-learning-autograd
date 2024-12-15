@@ -1,3 +1,5 @@
+//! Definition of core syntax. The core syntax allows to use expressions like `x + y * z`,
+//! and build a computation graph out of those expressions.
 use std::cell::RefCell;
 use std::collections::{BTreeMap, HashSet};
 use std::fmt::{self, Display};
@@ -18,7 +20,7 @@ pub enum Node<OP2>
 where
     OP2: Operator,
 {
-    Const(Ident),
+    Variable(Ident),
     Ary2(OP2, Ident, Ident),
 }
 
@@ -51,7 +53,7 @@ where
     fn fmt_node(&self, f: &mut fmt::Formatter<'_>, node: &Node<OP2>) -> fmt::Result {
         let id_to_node = self.eb.id_to_node.borrow();
         match node {
-            Node::Const(ident) => {
+            Node::Variable(ident) => {
                 let name = self
                     .eb
                     .id_to_name
@@ -129,7 +131,7 @@ where
             panic!("Variable with name {} already exists", name)
         }
 
-        let node = Node::Const(ident);
+        let node = Node::Variable(ident);
         let mut id_to_node = self.id_to_node.borrow_mut();
         id_to_node.insert(ident, node);
         Expr { eb: &self, ident }
