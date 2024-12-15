@@ -2,6 +2,7 @@
 use std::fmt;
 use std::ops;
 
+use crate::core_syntax::Operator;
 use crate::core_syntax::{Expr, Node};
 
 // Bespoke set of Ary2 operations
@@ -10,6 +11,9 @@ enum FloatOper {
     Add,
     Mul,
 }
+
+/// TODO Just a marker trait. How to remove necessity of explicit `impl Operator for FloatOper`?
+impl Operator for FloatOper {}
 
 impl fmt::Display for FloatOper {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

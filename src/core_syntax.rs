@@ -1,7 +1,6 @@
 use std::cell::RefCell;
 use std::collections::{BTreeMap, HashSet};
 use std::fmt::{self, Display};
-use std::ops;
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Debug, Hash)]
 pub struct Ident(usize);
@@ -12,10 +11,12 @@ impl Display for Ident {
     }
 }
 
+pub trait Operator: Clone + Copy + fmt::Debug + fmt::Display {}
+
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Node<OP2>
 where
-    OP2: Clone + Copy + fmt::Debug,
+    OP2: Operator,
 {
     Const(Ident),
     Ary2(OP2, Ident, Ident),
@@ -25,7 +26,7 @@ where
 #[derive(Clone, Copy, Debug)]
 pub struct Expr<'a, OP2>
 where
-    OP2: Copy + fmt::Debug,
+    OP2: Operator,
 {
     pub ident: Ident,
 
@@ -35,7 +36,7 @@ where
 
 impl<'a, OP2> Expr<'a, OP2>
 where
-    OP2: Copy + fmt::Debug,
+    OP2: Operator,
 {
     pub fn register_and_continue_expr(&self, node: Node<OP2>) -> Expr<'a, OP2> {
         let ident = self.eb.register(node);
@@ -45,7 +46,7 @@ where
 
 impl<'a, OP2> Expr<'a, OP2>
 where
-    OP2: Copy + fmt::Debug + fmt::Display,
+    OP2: Operator,
 {
     fn fmt_node(&self, f: &mut fmt::Formatter<'_>, node: &Node<OP2>) -> fmt::Result {
         let id_to_node = self.eb.id_to_node.borrow();
@@ -80,7 +81,7 @@ where
 
 impl<'a, OP2> fmt::Display for Expr<'a, OP2>
 where
-    OP2: Copy + fmt::Debug + fmt::Display,
+    OP2: Operator,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let map = self.eb.id_to_node.borrow();
@@ -92,7 +93,7 @@ where
 #[derive(Debug)]
 pub struct ExprBuilder<OP2>
 where
-    OP2: Copy + fmt::Debug,
+    OP2: Operator,
 {
     /// The map contains expression trees with references.
     id_to_node: RefCell<BTreeMap<Ident, Node<OP2>>>,
@@ -102,7 +103,7 @@ where
 
 impl<'a, OP2> ExprBuilder<OP2>
 where
-    OP2: Copy + fmt::Debug,
+    OP2: Operator,
 {
     pub fn new() -> ExprBuilder<OP2> {
         ExprBuilder {
