@@ -27,9 +27,20 @@ pub struct Expr<'a, OP2>
 where
     OP2: Copy + fmt::Debug,
 {
+    pub ident: Ident,
+
     // eb cannot be mut because mut is not Clone, therefore is not Copy, and we want Copy.
     eb: &'a ExprBuilder<OP2>,
-    ident: Ident,
+}
+
+impl<'a, OP2> Expr<'a, OP2>
+where
+    OP2: Copy + fmt::Debug,
+{
+    pub fn register_and_continue_expr(&self, node: Node<OP2>) -> Expr<'a, OP2> {
+        let ident = self.eb.register(node);
+        Expr { ident, eb: self.eb }
+    }
 }
 
 impl<'a, OP2> Expr<'a, OP2>
@@ -79,7 +90,7 @@ where
 }
 
 #[derive(Debug)]
-struct ExprBuilder<OP2>
+pub struct ExprBuilder<OP2>
 where
     OP2: Copy + fmt::Debug,
 {
@@ -134,57 +145,5 @@ where
 
     fn new_ident(&self) -> Ident {
         Ident(self.id_to_node.borrow().len())
-    }
-}
-
-// Bespoke set of Ary2 operations
-#[derive(Copy, Clone, Debug)]
-enum FloatOper {
-    Add,
-    Mul,
-}
-
-impl fmt::Display for FloatOper {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let s = match self {
-            FloatOper::Add => "+",
-            FloatOper::Mul => "*",
-        };
-        write!(f, "{}", s)
-    }
-}
-
-impl<'a> ops::Add for Expr<'a, FloatOper> {
-    type Output = Expr<'a, FloatOper>;
-
-    fn add(self, rhs: Self) -> Self::Output {
-        let node = Node::Ary2(FloatOper::Add, self.ident, rhs.ident);
-        let ident = self.eb.register(node);
-        Expr { ident, eb: self.eb }
-    }
-}
-impl<'a> ops::Mul for Expr<'a, FloatOper> {
-    type Output = Expr<'a, FloatOper>;
-
-    fn mul(self, rhs: Self) -> Self::Output {
-        let node = Node::Ary2(FloatOper::Mul, self.ident, rhs.ident);
-        let ident = self.eb.register(node);
-        Expr { ident, eb: self.eb }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn syntax() {
-        let eb = ExprBuilder::new();
-        let x1 = eb.new_variable("x1");
-        let x2 = eb.new_variable("x2");
-        let x3 = x1 + x2;
-        let x4 = x1 + x2;
-        let z = x1 + x2 * x3 + x4;
-        assert_eq!("(+ (+ x1 (* x2 (+ x1 x2))) (+ x1 x2))", format!("{}", z));
     }
 }
