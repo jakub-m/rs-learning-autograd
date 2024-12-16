@@ -188,23 +188,27 @@ mod tests {
                     panic!("Variable not set {} {}", cg.get_variable_name(ident), ident)
                 }
                 Node::Ary2(op, ident1, ident2) => match op {
-                    FloatOper::Add => (
-                        cg.calculate(ident1).primal + cg.calculate(ident2).primal,
-                        0.0_f32,
-                    )
-                        .into(),
-                    FloatOper::Mul => (
-                        cg.calculate(ident1).primal * cg.calculate(ident2).primal,
-                        0.0_f32,
-                    )
-                        .into(),
-                },
+                    FloatOper::Add => {
+                        let a = cg.calculate(ident1);
+                        let b = cg.calculate(ident2);
+                        (a.primal + b.primal, a.tangent + b.tangent)
+                    }
+                    FloatOper::Mul => {
+                        let a = cg.calculate(ident1);
+                        let b = cg.calculate(ident2);
+                        (
+                            a.primal * b.primal,
+                            a.primal * b.tangent + a.tangent * b.primal,
+                        )
+                    }
+                }
+                .into(),
             }
         }
     }
 
     #[test]
-    fn compute() {
+    fn compute_primal() {
         let eb = ExprBuilder::new();
         let x1 = eb.new_variable("x1");
         let x2 = eb.new_variable("x2");
@@ -215,11 +219,28 @@ mod tests {
         let x1 = x1.ident();
         let x2 = x2.ident();
         let e = e.ident();
-        let calculator = FloatCalculator;
-        let mut cg = ComputGraph::<f32, FloatOper>::new(eb, &calculator);
+        let mut cg = ComputGraph::<f32, FloatOper>::new(eb, &FloatCalculator);
         cg.set_variable(&x1, (3.0, 0.0).into());
         cg.set_variable(&x2, (5.0, 0.0).into());
         let p = cg.calculate(&e);
         assert_eq!(p.primal, (3.0 + 5.0) * (3.0 + 5.0) + (3.0 + 5.0));
+    }
+
+    #[test]
+    fn compute_simple_tangent() {
+        let eb = ExprBuilder::new();
+        let x1 = eb.new_variable("x1");
+        let x2 = eb.new_variable("x2");
+        let y = x1 * x2;
+
+        let x1 = x1.ident();
+        let x2 = x2.ident();
+        let e = y.ident();
+        let mut cg = ComputGraph::<f32, FloatOper>::new(eb, &FloatCalculator);
+        cg.set_variable(&x1, (3.0, 0.0).into());
+        cg.set_variable(&x2, (-4.0, 1.0).into());
+        let p = cg.calculate(&e);
+        assert_eq!(p.primal, (3.0 * -4.0));
+        assert_eq!(p.tangent, 3.0);
     }
 }
