@@ -9,16 +9,11 @@ pub struct Ident(usize);
 
 impl Display for Ident {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.0)
+        write!(f, "_{}", self.0)
     }
 }
 
-pub trait Operator: Clone + Copy + fmt::Debug + fmt::Display {
-    fn calc_primal(&self, ident1: &f32, ident2: &f32) -> f32 {
-        // HERE fix typing
-        todo!();
-    }
-}
+pub trait Operator: Clone + Copy + fmt::Debug + fmt::Display {}
 
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Node<OP2>
