@@ -13,7 +13,12 @@ impl Display for Ident {
     }
 }
 
-pub trait Operator: Clone + Copy + fmt::Debug + fmt::Display {}
+pub trait Operator: Clone + Copy + fmt::Debug + fmt::Display {
+    fn calc_primal(&self, ident1: &f32, ident2: &f32) -> f32 {
+        // HERE fix typing
+        todo!();
+    }
+}
 
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Node<OP2>
@@ -98,9 +103,9 @@ where
     OP2: Operator,
 {
     /// The map contains expression trees with references.
-    id_to_node: RefCell<BTreeMap<Ident, Node<OP2>>>,
-    id_to_name: RefCell<BTreeMap<Ident, String>>,
-    name_set: RefCell<HashSet<String>>,
+    pub(super) id_to_node: RefCell<BTreeMap<Ident, Node<OP2>>>,
+    pub(super) id_to_name: RefCell<BTreeMap<Ident, String>>,
+    pub(super) name_set: RefCell<HashSet<String>>,
 }
 
 impl<'a, OP2> ExprBuilder<OP2>

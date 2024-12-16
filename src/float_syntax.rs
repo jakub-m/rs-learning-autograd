@@ -7,7 +7,7 @@ use crate::core_syntax::{Expr, Node};
 
 // Bespoke set of Ary2 operations
 #[derive(Copy, Clone, Debug)]
-enum FloatOper {
+pub enum FloatOper {
     Add,
     Mul,
 }
