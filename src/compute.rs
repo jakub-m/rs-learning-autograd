@@ -1,3 +1,5 @@
+//! This module abstracts how to compute values out of nodes.
+
 use core::fmt;
 use std::{cell::RefCell, collections::BTreeMap};
 
@@ -37,7 +39,9 @@ where
     F: ComputValue,
     OP2: Operator,
 {
-    pub fn from_expr_builder<F2: ComputValue>(
+    /// Take ownership of the expression builder, because it "freezes" the expression. The expression, as represented
+    /// by the internal data structures of the expression builder, cannot change from now on.
+    pub fn new<F2: ComputValue>(
         eb: ExprBuilder<OP2>,
         calculator: &'a dyn Calculator<OP2, F2>,
     ) -> ComputGraph<F2, OP2> {
@@ -56,16 +60,11 @@ where
             .borrow_mut()
             .insert(ident.clone(), value.clone())
         {
-            panic!("Value for {} already set to {}", ident, old);
-        }
-    }
-
-    fn assert_ident_is_variable(&self, ident: &Ident) {
-        let id_to_node = self.eb.id_to_node.borrow();
-        let node = id_to_node.get(ident).expect("No such ident");
-        if let Node::Variable(_) = node {
-        } else {
-            panic!("Not a variable {}: {:?}", ident, node)
+            panic!(
+                "Value for {} already set to {}",
+                self.get_variable_name(ident),
+                old
+            );
         }
     }
 
@@ -90,7 +89,16 @@ where
         primal
     }
 
-    fn get_variable_name(&self, ident: &Ident) -> String {
+    fn assert_ident_is_variable(&self, ident: &Ident) {
+        let id_to_node = self.eb.id_to_node.borrow();
+        let node = id_to_node.get(ident).expect("No such ident");
+        if let Node::Variable(_) = node {
+        } else {
+            panic!("Not a variable {}: {:?}", ident, node)
+        }
+    }
+
+    pub fn get_variable_name(&self, ident: &Ident) -> String {
         let id_to_name = self.eb.id_to_name.borrow();
         id_to_name
             .get(ident)
@@ -157,7 +165,7 @@ mod tests {
         let x2 = x2.ident();
         let e = e.ident();
         let calculator = FloatCalculator;
-        let mut cg = ComputGraph::<f32, FloatOper>::from_expr_builder(eb, &calculator);
+        let mut cg = ComputGraph::<f32, FloatOper>::new(eb, &calculator);
         cg.set_variable(&x1, 3.0);
         cg.set_variable(&x2, 5.0);
         let p = cg.calculate_primal(&e);
