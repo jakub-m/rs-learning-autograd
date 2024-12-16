@@ -21,7 +21,50 @@ where
 }
 
 /// A type of the computed value (like, f32).
-pub trait ComputValue: Clone + fmt::Display {}
+pub trait ComputValue: Clone + fmt::Display + fmt::Debug {}
+
+/// A composite of primal and a relevant tangent.
+#[derive(Clone, Debug)]
+pub struct Composite<F>
+where
+    F: ComputValue,
+{
+    pub primal: F,
+    pub tangent: F,
+}
+
+impl<F> Composite<F>
+where
+    F: ComputValue,
+{
+    fn new(primal: F, tangent: F) -> Composite<F> {
+        Composite {
+            primal: primal.clone(),
+            tangent: tangent.clone(),
+        }
+    }
+}
+
+impl<F> From<(F, F)> for Composite<F>
+where
+    F: ComputValue,
+{
+    fn from(value: (F, F)) -> Self {
+        Composite {
+            primal: value.0,
+            tangent: value.1,
+        }
+    }
+}
+
+impl<F> fmt::Display for Composite<F>
+where
+    F: ComputValue,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "({}, {})", self.primal, self.tangent)
+    }
+}
 
 /// "Freezes" the expression tree by taking ownership of the expression builder.
 pub struct ComputGraph<'a, F, OP2>
@@ -29,7 +72,7 @@ where
     F: ComputValue,
     OP2: Operator,
 {
-    primals: RefCell<BTreeMap<Ident, F>>,
+    composites: RefCell<BTreeMap<Ident, Composite<F>>>,
     eb: ExprBuilder<OP2>,
     calculator: &'a dyn Calculator<OP2, F>,
 }
@@ -46,17 +89,17 @@ where
         calculator: &'a dyn Calculator<OP2, F2>,
     ) -> ComputGraph<F2, OP2> {
         ComputGraph {
-            primals: RefCell::new(BTreeMap::new()),
+            composites: RefCell::new(BTreeMap::new()),
             eb,
             calculator,
         }
     }
 
-    pub fn set_variable(&mut self, ident: &dyn AsRef<Ident>, value: F) {
+    pub fn set_variable(&mut self, ident: &dyn AsRef<Ident>, value: Composite<F>) {
         let ident = ident.as_ref();
         self.assert_ident_is_variable(ident);
         if let Some(old) = self
-            .primals
+            .composites
             .borrow_mut()
             .insert(ident.clone(), value.clone())
         {
@@ -69,24 +112,24 @@ where
     }
 
     /// This operation is MUTABLE, i.e. it mutates the internal cache of the calculated values.
-    pub fn calculate_primal(&self, ident: &dyn AsRef<Ident>) -> F {
+    pub fn calculate(&self, ident: &dyn AsRef<Ident>) -> Composite<F> {
         let ident = ident.as_ref();
-        if let Some(value) = self.primals.borrow().get(&ident) {
+        if let Some(value) = self.composites.borrow().get(&ident) {
             return value.clone();
         }
         let id_to_node = self.eb.id_to_node.borrow();
         let node = id_to_node
             .get(&ident)
             .expect(format!("Node missing for {}", ident).as_str());
-        let primal = self.calculator.calculate_primal(self, node);
+        let composite = self.calculator.calculate(self, node);
         if let Some(old) = self
-            .primals
+            .composites
             .borrow_mut()
-            .insert(ident.clone(), primal.clone())
+            .insert(ident.clone(), composite.clone())
         {
             panic!("The value for {} already set to {}", ident, old);
         }
-        primal
+        composite
     }
 
     fn assert_ident_is_variable(&self, ident: &Ident) {
@@ -119,12 +162,12 @@ where
     ///
     /// Usually, `calculate_primal` should not be called for `Node::Variable` since all the variables should
     /// be set beforehand with `set_variable`. It's ok to `panic` on Node::Variable.
-    fn calculate_primal(&self, cg: &ComputGraph<F, OP2>, node: &Node<OP2>) -> F;
+    fn calculate(&self, cg: &ComputGraph<F, OP2>, node: &Node<OP2>) -> Composite<F>;
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{Calculator, ComputGraph, ComputValue};
+    use super::{Calculator, Composite, ComputGraph, ComputValue};
     use crate::{
         core_syntax::{ExprBuilder, Node},
         float_syntax::FloatOper,
@@ -135,18 +178,26 @@ mod tests {
     struct FloatCalculator;
 
     impl Calculator<FloatOper, f32> for FloatCalculator {
-        fn calculate_primal(
+        fn calculate(
             &self,
             cg: &ComputGraph<f32, FloatOper>,
             node: &Node<FloatOper>,
-        ) -> f32 {
+        ) -> Composite<f32> {
             match node {
                 Node::Variable(ident) => {
                     panic!("Variable not set {} {}", cg.get_variable_name(ident), ident)
                 }
                 Node::Ary2(op, ident1, ident2) => match op {
-                    FloatOper::Add => cg.calculate_primal(ident1) + cg.calculate_primal(ident2),
-                    FloatOper::Mul => cg.calculate_primal(ident1) * cg.calculate_primal(ident2),
+                    FloatOper::Add => (
+                        cg.calculate(ident1).primal + cg.calculate(ident2).primal,
+                        0.0_f32,
+                    )
+                        .into(),
+                    FloatOper::Mul => (
+                        cg.calculate(ident1).primal * cg.calculate(ident2).primal,
+                        0.0_f32,
+                    )
+                        .into(),
                 },
             }
         }
@@ -166,9 +217,9 @@ mod tests {
         let e = e.ident();
         let calculator = FloatCalculator;
         let mut cg = ComputGraph::<f32, FloatOper>::new(eb, &calculator);
-        cg.set_variable(&x1, 3.0);
-        cg.set_variable(&x2, 5.0);
-        let p = cg.calculate_primal(&e);
-        assert_eq!(p, (3.0 + 5.0) * (3.0 + 5.0) + (3.0 + 5.0));
+        cg.set_variable(&x1, (3.0, 0.0).into());
+        cg.set_variable(&x2, (5.0, 0.0).into());
+        let p = cg.calculate(&e);
+        assert_eq!(p.primal, (3.0 + 5.0) * (3.0 + 5.0) + (3.0 + 5.0));
     }
 }
