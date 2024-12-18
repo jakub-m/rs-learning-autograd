@@ -3,7 +3,7 @@
 use core::fmt;
 use std::{cell::RefCell, collections::BTreeMap};
 
-use crate::core_syntax::{Expr, ExprBuilder, Ident, Node, Operator};
+use crate::core_syntax::{Expr, ExprBuilder, Ident, Node, Operator, VariableNameId};
 
 impl AsRef<Ident> for Ident {
     fn as_ref(&self) -> &Ident {
@@ -60,11 +60,7 @@ where
             .borrow_mut()
             .insert(ident.clone(), value.clone())
         {
-            panic!(
-                "Value for {} already set to {}",
-                self.get_variable_name(ident),
-                old
-            );
+            panic!("Value for {} already set to {}", ident, old);
         }
     }
 
@@ -99,10 +95,10 @@ where
         }
     }
 
-    pub fn get_variable_name(&self, ident: &Ident) -> String {
+    pub fn get_variable_name(&self, name_id: &VariableNameId) -> String {
         let id_to_name = self.eb.id_to_name.borrow();
         id_to_name
-            .get(ident)
+            .get(&name_id)
             .expect("no name for such ident")
             .to_owned()
     }
@@ -138,8 +134,12 @@ mod tests {
     impl Calculator<FloatOper, f32> for FloatCalculator {
         fn forward(&self, cg: &ComputGraph<f32, FloatOper>, node: &Node<FloatOper>) -> f32 {
             match node {
-                Node::Variable(ident) => {
-                    panic!("Variable not set {} {}", cg.get_variable_name(ident), ident)
+                Node::Variable(name_id) => {
+                    panic!(
+                        "Variable not set {} {}",
+                        cg.get_variable_name(name_id),
+                        name_id
+                    )
                 }
                 Node::Ary2(op, ident1, ident2) => match op {
                     FloatOper::Add => {

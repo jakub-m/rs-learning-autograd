@@ -13,6 +13,23 @@ impl Display for Ident {
     }
 }
 
+/// Some nodes are variables, and those variables have names stored aside. VariableNameId
+/// points to that unique name. The type is only to distinguish Ident from variable name.
+#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Debug, Hash)]
+pub struct VariableNameId(Ident);
+
+impl Display for VariableNameId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "name({})", self.0)
+    }
+}
+
+impl From<Ident> for VariableNameId {
+    fn from(value: Ident) -> Self {
+        VariableNameId(value)
+    }
+}
+
 pub trait Operator: Clone + Copy + fmt::Debug + fmt::Display {}
 
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
@@ -20,7 +37,7 @@ pub enum Node<OP2>
 where
     OP2: Operator,
 {
-    Variable(Ident),
+    Variable(VariableNameId),
     Ary2(OP2, Ident, Ident),
 }
 
@@ -53,13 +70,13 @@ where
     fn fmt_node(&self, f: &mut fmt::Formatter<'_>, node: &Node<OP2>) -> fmt::Result {
         let id_to_node = self.eb.id_to_node.borrow();
         match node {
-            Node::Variable(ident) => {
+            Node::Variable(name_id) => {
                 let name = self
                     .eb
                     .id_to_name
                     .borrow()
-                    .get(ident)
-                    .expect(format!("Variable with {} does not exist", ident).as_str())
+                    .get(name_id)
+                    .expect(format!("Variable with {} does not exist", name_id).as_str())
                     .to_owned();
                 write!(f, "{}", name)?;
             }
@@ -99,7 +116,7 @@ where
 {
     /// The map contains expression trees with references.
     pub(super) id_to_node: RefCell<BTreeMap<Ident, Node<OP2>>>,
-    pub(super) id_to_name: RefCell<BTreeMap<Ident, String>>,
+    pub(super) id_to_name: RefCell<BTreeMap<VariableNameId, String>>,
     pub(super) name_set: RefCell<HashSet<String>>,
 }
 
@@ -117,9 +134,10 @@ where
 
     pub fn new_variable(&'a self, name: &str) -> Expr<'a, OP2> {
         let ident = self.new_ident();
+        let name_id: VariableNameId = ident.into();
 
         let mut id_to_name = self.id_to_name.borrow_mut();
-        if let Some(old_name) = id_to_name.insert(ident, name.to_owned()) {
+        if let Some(old_name) = id_to_name.insert(name_id, name.to_owned()) {
             panic!(
                 "Variable for  {:?} already exists with name {}",
                 ident, old_name
@@ -131,7 +149,7 @@ where
             panic!("Variable with name {} already exists", name)
         }
 
-        let node = Node::Variable(ident);
+        let node = Node::Variable(name_id);
         let mut id_to_node = self.id_to_node.borrow_mut();
         id_to_node.insert(ident, node);
         Expr { eb: &self, ident }
