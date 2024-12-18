@@ -5,6 +5,9 @@ My learning exercise to understand automatic gradient, and to exercise Rust.
 ## Learnings, observations
 
 - Computation graph can be agnostic to the underlying representation of the value (if e.g. it is f32 or int).
+- `From` tuple to Composite simplifies syntax
+- Rust forces you to separate the concepts, like expression builder from computation, otherwise the problem
+  becomes to entangled. When separated, the problems can be nicely implemented.
 
 ## Materials
 
@@ -16,6 +19,6 @@ My learning exercise to understand automatic gradient, and to exercise Rust.
 
 - Compute partial derivates and outputs for all inputs at once.
 - Implement reverse mode.
-- Do not use enum but a reference to trait.
 - Implement gradient descent with this autograd
+- Implement larger test cases (examples from YT and HF)
 - Train something
