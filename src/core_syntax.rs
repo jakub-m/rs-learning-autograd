@@ -30,6 +30,18 @@ impl From<Ident> for VariableNameId {
     }
 }
 
+impl From<VariableNameId> for Ident {
+    fn from(value: VariableNameId) -> Self {
+        value.0
+    }
+}
+
+impl<'a> From<&'a VariableNameId> for &'a Ident {
+    fn from(value: &'a VariableNameId) -> Self {
+        &value.0
+    }
+}
+
 pub trait Operator: Clone + Copy + fmt::Debug + fmt::Display {}
 
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]

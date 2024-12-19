@@ -1,7 +1,7 @@
 //! This module abstracts how to compute values out of nodes.
 
 use core::fmt;
-use std::{cell::RefCell, collections::BTreeMap};
+use std::{cell::RefCell, collections::BTreeMap, ops};
 
 use crate::core_syntax::{Expr, ExprBuilder, Ident, Node, Operator, VariableNameId};
 
@@ -20,8 +20,15 @@ where
     }
 }
 
-/// A type of the computed value (like, f32).
-pub trait ComputValue: Clone + fmt::Display + fmt::Debug {}
+/// A type of the computed value (like, f32). Add is needed to update adjoins.
+pub trait ComputValue:
+    Clone + fmt::Display + fmt::Debug + DefaultAdjoin + ops::Add<Output = Self>
+{
+}
+
+pub trait DefaultAdjoin {
+    fn default_adjoin() -> Self;
+}
 
 /// "Freezes" the expression tree by taking ownership of the expression builder.
 pub struct ComputGraph<'a, F, OP2>
@@ -29,7 +36,10 @@ where
     F: ComputValue,
     OP2: Operator,
 {
+    /// Primals are computed during a forward pass.
     primals: RefCell<BTreeMap<Ident, F>>,
+    /// Adjoins are updated during a backward pass.
+    adjoins: RefCell<BTreeMap<Ident, F>>,
     eb: ExprBuilder<OP2>,
     calculator: &'a dyn Calculator<OP2, F>,
 }
@@ -47,6 +57,7 @@ where
     ) -> ComputGraph<'a, F2, OP2> {
         ComputGraph {
             primals: RefCell::new(BTreeMap::new()),
+            adjoins: RefCell::new(BTreeMap::new()),
             eb,
             calculator,
         }
@@ -64,6 +75,14 @@ where
         }
     }
 
+    pub fn get_node(&self, ident: &Ident) -> Node<OP2> {
+        let id_to_node = self.eb.id_to_node.borrow();
+        let node = id_to_node
+            .get(ident)
+            .expect(format!("No node for ident {}", ident).as_str());
+        node.clone()
+    }
+
     /// Forward pass, calculate primals.
     /// This operation is MUTABLE, i.e. it mutates the internal cache of the calculated values.
     pub fn forward(&self, ident: &dyn AsRef<Ident>) -> F {
@@ -71,11 +90,7 @@ where
         if let Some(value) = self.primals.borrow().get(&ident) {
             return value.clone();
         }
-        let id_to_node = self.eb.id_to_node.borrow();
-        let node = id_to_node
-            .get(&ident)
-            .expect(format!("Node missing for {}", ident).as_str());
-        let primal = self.calculator.forward(self, node);
+        let primal = self.calculator.forward(self, ident);
         if let Some(old) = self
             .primals
             .borrow_mut()
@@ -84,6 +99,19 @@ where
             panic!("The value for {} already set to {}", ident, old);
         }
         primal
+    }
+
+    /// Implement reverse mode of automatic gradient. The procedure is as follows:
+    /// 1. Each Node has child nodes, e.g. for node Y that is X1+X2, the X nodes are children.
+    ///    For a Y node, consider the contribution of Y to each of its children X.
+    /// 2. Calculate the contribution of Y to X as X_. X_ is a partial adjoin that is accumulated
+    ///    among all the inputs to X. X_ = Y_ * dY/dX.
+    /// 3. Re-run the procedure with each X node.
+    /// The function just calculates the values but does not return adjoin, since the adjoin values the user is interested in
+    /// (leaf X nodes) is for other nodes that the backward pass is run for (Y).
+    pub fn backward(&self, ident: &dyn AsRef<Ident>) {
+        let ident = ident.as_ref();
+        self.calculator.backward(self, ident, F::default_adjoin());
     }
 
     fn assert_ident_is_variable(&self, ident: &Ident) {
@@ -102,6 +130,15 @@ where
             .expect("no name for such ident")
             .to_owned()
     }
+
+    /// Call `add_adjoin` to update adjoin for a node with partial adjoin.
+    pub fn add_adjoin(&self, ident: &Ident, adjoin: F) {
+        let mut adjoins = self.adjoins.borrow_mut();
+        let updated = adjoins
+            .get(ident)
+            .map_or(adjoin.clone(), |old| old.clone() + adjoin.clone());
+        adjoins.insert(ident.clone(), updated);
+    }
 }
 
 /// Take node and return a calculated value.
@@ -116,45 +153,69 @@ where
     ///
     /// Usually, `calculate_primal` should not be called for `Node::Variable` since all the variables should
     /// be set beforehand with `set_variable`. It's ok to `panic` on Node::Variable.
-    fn forward(&self, cg: &ComputGraph<F, OP2>, node: &Node<OP2>) -> F;
+    fn forward(&self, cg: &ComputGraph<F, OP2>, ident: &Ident) -> F;
+
+    /// The implementation of the backward pass is responsible for updating partial adjoins though ComputGraph.
+    fn backward(&self, cg: &ComputGraph<F, OP2>, ident: &Ident, adjoin: F);
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{Calculator, ComputGraph, ComputValue};
+    use super::{Calculator, ComputGraph, ComputValue, DefaultAdjoin};
     use crate::{
-        core_syntax::{ExprBuilder, Node},
+        core_syntax::{ExprBuilder, Ident, Node},
         float_syntax::FloatOper,
     };
 
     impl ComputValue for f32 {}
+    impl DefaultAdjoin for f32 {
+        fn default_adjoin() -> Self {
+            1.0
+        }
+    }
 
     struct FloatCalculator;
 
     impl Calculator<FloatOper, f32> for FloatCalculator {
-        fn forward(&self, cg: &ComputGraph<f32, FloatOper>, node: &Node<FloatOper>) -> f32 {
+        fn forward(&self, cg: &ComputGraph<f32, FloatOper>, ident: &Ident) -> f32 {
+            let node = cg.get_node(ident);
             match node {
                 Node::Variable(name_id) => {
                     panic!(
                         "Variable not set {} {}",
-                        cg.get_variable_name(name_id),
+                        cg.get_variable_name(&name_id),
                         name_id
                     )
                 }
                 Node::Ary2(op, ident1, ident2) => match op {
                     FloatOper::Add => {
-                        let a = cg.forward(ident1);
-                        let b = cg.forward(ident2);
+                        let a = cg.forward(&ident1);
+                        let b = cg.forward(&ident2);
                         a + b
                     }
                     FloatOper::Mul => {
-                        let a = cg.forward(ident1);
-                        let b = cg.forward(ident2);
+                        let a = cg.forward(&ident1);
+                        let b = cg.forward(&ident2);
                         a * b
                     }
                 }
                 .into(),
             }
+        }
+
+        fn backward(&self, cg: &ComputGraph<f32, FloatOper>, ident: &Ident, adjoin: f32) {
+            todo!(); // make forward and backward use ident on input, not Node.
+                     //match node {
+                     //    Node::Variable(name_id) => {
+                     //        cg.add_adjoin(name_id.into(), adjoin);
+                     //    }
+                     //    Node::Ary2(op, ident1, ident2) => {
+                     //        // Add adjoin to current?
+                     //        // update adjoin
+                     //        // calculate
+                     //        todo!()
+                     //    }
+                     //}
         }
     }
 
