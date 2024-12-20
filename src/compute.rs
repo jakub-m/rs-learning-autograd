@@ -139,6 +139,28 @@ where
             .map_or(adjoin.clone(), |old| old.clone() + adjoin.clone());
         adjoins.insert(ident.clone(), updated);
     }
+
+    pub fn primal(&self, ident: &Ident) -> F {
+        let primals = self.primals.borrow();
+        primals
+            .get(ident)
+            .expect(format!("Primal missing for {}", ident).as_str())
+            .clone()
+    }
+
+    pub fn adjoin(&self, ident: &Ident) -> F {
+        let adjoins = self.adjoins.borrow();
+        adjoins
+            .get(ident)
+            .expect(
+                format!(
+                    "Adjoin missing for {}, maybe you didn't run backward?",
+                    ident
+                )
+                .as_str(),
+            )
+            .clone()
+    }
 }
 
 /// Take node and return a calculated value.
@@ -204,18 +226,24 @@ mod tests {
         }
 
         fn backward(&self, cg: &ComputGraph<f32, FloatOper>, ident: &Ident, adjoin: f32) {
-            todo!(); // make forward and backward use ident on input, not Node.
-                     //match node {
-                     //    Node::Variable(name_id) => {
-                     //        cg.add_adjoin(name_id.into(), adjoin);
-                     //    }
-                     //    Node::Ary2(op, ident1, ident2) => {
-                     //        // Add adjoin to current?
-                     //        // update adjoin
-                     //        // calculate
-                     //        todo!()
-                     //    }
-                     //}
+            cg.add_adjoin(ident, adjoin); // TODO move to common place?
+            let node = cg.get_node(ident);
+            match node {
+                Node::Variable(_) => (),
+                Node::Ary2(op, v1, v2) => match op {
+                    FloatOper::Add => todo!(),
+                    FloatOper::Mul => {
+                        let v1_p = cg.primal(&v1);
+                        let v2_p = cg.primal(&v2);
+                        let v1_ad = adjoin * v2_p;
+                        let v2_ad = adjoin * v1_p;
+                        //cg.add_adjoin(&v1, v1_ad);
+                        //cg.add_adjoin(&v2, v2_ad);
+                        self.backward(cg, &v1, v1_ad);
+                        self.backward(cg, &v2, v2_ad);
+                    }
+                },
+            }
         }
     }
 
@@ -247,11 +275,12 @@ mod tests {
 
         let x1 = x1.ident();
         let x2 = x2.ident();
-        let e = y.ident();
+        let y = y.ident();
         let mut cg = ComputGraph::<f32, FloatOper>::new(eb, &FloatCalculator);
         cg.set_variable(&x1, 3.0);
         cg.set_variable(&x2, -4.0);
-        let p = cg.forward(&e);
-        assert_eq!(p, (3.0 * -4.0));
+        cg.forward(&y);
+        cg.backward(&y);
+        assert_eq!(cg.adjoin(&x1), -4.0); // not sure if this is ok
     }
 }

@@ -5,7 +5,7 @@ mod tests {
 
     #[test]
     fn compare_derivate() {
-        assert_functions_similar(|x| x.sin(), |x| x.cos() + 2.0, 100, 0.01, "compare_sin");
+        assert_functions_similar(|x| x.sin(), |x| x.cos(), 100, 0.01, "compare_sin");
     }
 
     // TODO move elsewhere
