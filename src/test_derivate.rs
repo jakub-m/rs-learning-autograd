@@ -3,9 +3,35 @@
 mod tests {
     use std::{fs::File, io::Write};
 
+    use crate::{
+        compute::ComputGraph, core_syntax::ExprBuilder, float_calculator::FloatCalculator,
+        float_syntax::FloatOper,
+    };
+
     #[test]
-    fn compare_derivate() {
+    fn compare_sin_cos() {
         assert_functions_similar(|x| x.sin(), |x| x.cos(), 100, 0.01, "compare_sin");
+    }
+
+    #[test]
+    fn compare_simple_adjoin() {
+        let df = |x: f32| {
+            let eb = ExprBuilder::new();
+            let x1 = eb.new_variable("x1");
+            let x2 = eb.new_variable("x2");
+            let y = x1 * x2;
+
+            let x1 = x1.ident();
+            let x2 = x2.ident();
+            let y = y.ident();
+            let mut cg = ComputGraph::<f32, FloatOper>::new(eb, &FloatCalculator);
+            cg.set_variable(&x1, 3.0);
+            cg.set_variable(&x2, -4.0);
+            cg.forward(&y);
+            cg.backward(&y);
+            1.0
+        };
+        assert_functions_similar(|x| x.sin(), df, 100, 0.01, "compare_simple_adjoin");
     }
 
     // TODO move elsewhere

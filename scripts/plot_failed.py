@@ -15,7 +15,7 @@ def __():
 
 @app.cell
 def __(Path, alt, mo, pd):
-    filepath = Path("compare_sin.csv")
+    filepath = Path("compare_simple_adjoin.csv")
     df = pd.read_csv(filepath, sep="\t")
 
     chart = alt.Chart(df)
