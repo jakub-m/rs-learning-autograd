@@ -83,6 +83,11 @@ where
         node.clone()
     }
 
+    pub fn reset(&mut self) {
+        self.primals = RefCell::new(BTreeMap::new());
+        self.adjoins = RefCell::new(BTreeMap::new());
+    }
+
     /// Forward pass, calculate primals.
     /// This operation is MUTABLE, i.e. it mutates the internal cache of the calculated values.
     pub fn forward(&self, ident: &dyn AsRef<Ident>) -> F {

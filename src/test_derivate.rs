@@ -10,35 +10,38 @@ mod tests {
 
     #[test]
     fn compare_sin_cos() {
-        assert_functions_similar(|x| x.sin(), |x| x.cos(), 100, 0.01, "compare_sin");
+        let mut df = |x: f32| x.cos();
+        assert_functions_similar(|x| x.sin(), &mut df, 100, 0.01, "compare_sin");
     }
 
     #[test]
     fn compare_simple_adjoin() {
-        let df = |x: f32| {
-            let eb = ExprBuilder::new();
-            let x1 = eb.new_variable("x1");
-            let x2 = eb.new_variable("x2");
-            let y = x1 * x2;
+        let eb = ExprBuilder::new();
+        let x1 = eb.new_variable("x1");
+        let x2 = eb.new_variable("x2");
+        let y = x1 * x2;
 
-            let x1 = x1.ident();
-            let x2 = x2.ident();
-            let y = y.ident();
-            let mut cg = ComputGraph::<f32, FloatOper>::new(eb, &FloatCalculator);
-            cg.set_variable(&x1, 3.0);
-            cg.set_variable(&x2, -4.0);
+        let x1 = &x1.ident();
+        let x2 = &x2.ident();
+        let y = &y.ident();
+        let mut cg = ComputGraph::<f32, FloatOper>::new(eb, &FloatCalculator);
+        let mut df = |x: f32| {
+            cg.reset();
+            cg.set_variable(&x1, x);
+            cg.set_variable(&x2, 0.3);
             cg.forward(&y);
             cg.backward(&y);
-            1.0
+
+            cg.adjoin(x1)
         };
-        assert_functions_similar(|x| x.sin(), df, 100, 0.01, "compare_simple_adjoin");
+        assert_functions_similar(|x| x.sin(), &mut df, 100, 0.01, "compare_simple_adjoin");
     }
 
     // TODO move elsewhere
-    fn assert_functions_similar<F1, F2>(f: F1, df: F2, n: usize, step: f32, test_name: &str)
+    fn assert_functions_similar<F1, F2>(f: F1, df: &mut F2, n: usize, step: f32, test_name: &str)
     where
         F1: Fn(f32) -> f32,
-        F2: Fn(f32) -> f32,
+        F2: FnMut(f32) -> f32,
     {
         let mut y1_values: Vec<f32> = vec![];
         let mut y2_values: Vec<f32> = vec![];
