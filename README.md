@@ -6,8 +6,8 @@ My learning exercise to understand automatic gradient, and to exercise Rust.
 
 - Computation graph can be agnostic to the underlying representation of the value (if e.g. it is f32 or int).
 - `From` tuple to Composite simplifies syntax
-- Rust forces you to separate the concepts, like expression builder from computation, otherwise the problem
-  becomes to entangled. When separated, the problems can be nicely implemented.
+- Rust forces you to separate the concepts, like expression builder from computation, otherwise the problem becomes to
+  entangled. When separated, the problems can be nicely implemented.
 
 ## Materials
 
@@ -25,6 +25,11 @@ My learning exercise to understand automatic gradient, and to exercise Rust.
 
 ## Using marimo to view test outputs
 
+There are integration tests that compare a function and that function re-created using derivates. If the test fails,
+then a CSV file is created showing the difference. You can view the files with [marimo][ref_marimo] notebook:
+
 ```bash
 marimo edit scripts/plot_failed.py -- --file=sin_cos.csv
 ```
+
+[ref_marimo]:https://marimo.io/
