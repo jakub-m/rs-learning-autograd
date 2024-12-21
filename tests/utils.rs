@@ -1,6 +1,6 @@
 use std::{fs::File, io::Write};
 
-pub fn assert_functions_similar<F1, F2>(f: F1, df: &mut F2, n: usize, step: f32, test_name: &str)
+pub fn assert_functions_similar<F1, F2>(f: F1, df: &mut F2, step: f32, end: f32, test_name: &str)
 where
     F1: Fn(f32) -> f32,
     F2: FnMut(f32) -> f32,
@@ -9,6 +9,9 @@ where
     let mut y2_values: Vec<f32> = vec![];
     let mut x_values: Vec<f32> = vec![];
     let mut y2 = f(0.0);
+    assert!(step > 0.0);
+    let n = (end / step) as usize;
+    assert!(n >= 10);
     for x in (0..n).map(|f| (f as f32) * step) {
         x_values.push(x);
         let y1 = f(x);

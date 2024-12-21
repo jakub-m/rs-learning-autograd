@@ -8,12 +8,14 @@ use crate::core_syntax::{Expr, Node};
 pub enum FloatOperAry1 {
     Cos,
     Sin,
+    Ln,
 }
 
 // Bespoke set of Ary2 operations
 #[derive(Copy, Clone, Debug)]
 pub enum FloatOperAry2 {
     Add,
+    Sub,
     Mul,
 }
 
@@ -25,6 +27,7 @@ impl fmt::Display for FloatOperAry1 {
         let s = match self {
             FloatOperAry1::Cos => "cos",
             FloatOperAry1::Sin => "sin",
+            FloatOperAry1::Ln => "ln",
         };
         write!(f, "{}", s)
     }
@@ -37,6 +40,7 @@ impl fmt::Display for FloatOperAry2 {
         let s = match self {
             FloatOperAry2::Add => "+",
             FloatOperAry2::Mul => "*",
+            FloatOperAry2::Sub => "-",
         };
         write!(f, "{}", s)
     }
@@ -52,6 +56,16 @@ impl<'a> ops::Add for ExprFloat<'a> {
         self.register_and_continue_expr(node)
     }
 }
+
+impl<'a> ops::Sub for ExprFloat<'a> {
+    type Output = ExprFloat<'a>;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        let node = Node::Ary2(FloatOperAry2::Sub, self.ident, rhs.ident);
+        self.register_and_continue_expr(node)
+    }
+}
+
 impl<'a> ops::Mul for ExprFloat<'a> {
     type Output = ExprFloat<'a>;
 
@@ -69,6 +83,11 @@ impl<'a> ExprFloat<'a> {
 
     pub fn sin(&self) -> ExprFloat<'a> {
         let node = Node::Ary1(FloatOperAry1::Sin, self.ident);
+        self.register_and_continue_expr(node)
+    }
+
+    pub fn ln(&self) -> ExprFloat<'a> {
+        let node = Node::Ary1(FloatOperAry1::Ln, self.ident);
         self.register_and_continue_expr(node)
     }
 }

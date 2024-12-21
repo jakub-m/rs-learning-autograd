@@ -34,12 +34,21 @@ impl Calculator<FloatOperAry1, FloatOperAry2, f32> for FloatCalculator {
                     let a = cg.forward(&ident1);
                     a.sin()
                 }
+                FloatOperAry1::Ln => {
+                    let a = cg.forward(&ident1);
+                    a.ln()
+                }
             },
             Node::Ary2(op, ident1, ident2) => match op {
                 FloatOperAry2::Add => {
                     let a = cg.forward(&ident1);
                     let b = cg.forward(&ident2);
                     a + b
+                }
+                FloatOperAry2::Sub => {
+                    let a = cg.forward(&ident1);
+                    let b = cg.forward(&ident2);
+                    a - b
                 }
                 FloatOperAry2::Mul => {
                     let a = cg.forward(&ident1);
@@ -65,23 +74,33 @@ impl Calculator<FloatOperAry1, FloatOperAry2, f32> for FloatCalculator {
                 FloatOperAry1::Cos => {
                     let v1_p = cg.primal(&v1);
                     let v1_ad = v1_p.cos();
-                    self.backward(cg, &v1, v1_ad);
+                    self.backward(cg, &v1, adjoin * v1_ad);
                 }
                 FloatOperAry1::Sin => {
                     let v1_p = cg.primal(&v1);
                     let v1_ad = -1.0 * v1_p.sin();
-                    self.backward(cg, &v1, v1_ad);
+                    self.backward(cg, &v1, adjoin * v1_ad);
+                }
+                FloatOperAry1::Ln => {
+                    let v1_p = cg.primal(&v1);
+                    let v1_ad = 1.0 / v1_p;
+                    self.backward(cg, &v1, adjoin * v1_ad);
                 }
             },
             Node::Ary2(op, v1, v2) => match op {
-                FloatOperAry2::Add => todo!(),
+                FloatOperAry2::Add => {
+                    self.backward(cg, &v1, adjoin * 1.0);
+                    self.backward(cg, &v2, adjoin * 1.0);
+                }
+                FloatOperAry2::Sub => {
+                    self.backward(cg, &v1, adjoin * 1.0);
+                    self.backward(cg, &v2, adjoin * -1.0);
+                }
                 FloatOperAry2::Mul => {
                     let v1_p = cg.primal(&v1);
                     let v2_p = cg.primal(&v2);
-                    let v1_ad = adjoin * v2_p;
-                    let v2_ad = adjoin * v1_p;
-                    self.backward(cg, &v1, v1_ad);
-                    self.backward(cg, &v2, v2_ad);
+                    self.backward(cg, &v1, adjoin * v2_p);
+                    self.backward(cg, &v2, adjoin * v1_p);
                 }
             },
         }
