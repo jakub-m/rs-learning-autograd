@@ -14,13 +14,6 @@ def __():
     return Path, alt, mo, os, pd
 
 
-@app.cell
-def __(mo):
-    file_browser = mo.ui.file_browser(multiple=False, restrict_navigation=True, filetypes=[".csv"])
-    file_browser
-    return file_browser,
-
-
 @app.cell(hide_code=True)
 def __(mo):
     button_reload = mo.ui.button(label="Reload")
@@ -28,21 +21,27 @@ def __(mo):
     return button_reload,
 
 
-@app.cell(hide_code=True)
+@app.cell
+def __(button_reload, mo):
+    button_reload
+
+    file_browser = mo.ui.file_browser(multiple=False, restrict_navigation=True, filetypes=[".csv"])
+    file_browser
+    return file_browser,
+
+
+@app.cell
 def __(Path, file_browser, mo):
     if file_browser.value:
         filepath = file_browser.value[0].path
     else:
         filepath = mo.cli_args().get("file")
     filepath = Path(filepath)
-    filepath.exists()
     return filepath,
 
 
-@app.cell(hide_code=True)
-def __(alt, button_reload, filepath, mo, os, pd):
-    button_reload
-
+@app.cell
+def __(alt, filepath, mo, os, pd):
     df = pd.read_csv(filepath, sep="\t")
 
     chart = alt.Chart(df, title=f"{filepath.relative_to(os.getcwd())}")
