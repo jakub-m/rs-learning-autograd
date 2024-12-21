@@ -106,9 +106,9 @@ where
             Node::Ary2(op, ident1, ident2) => {
                 let node1 = id_to_node.get(ident1).ok_or(fmt::Error)?;
                 let node2 = id_to_node.get(ident2).ok_or(fmt::Error)?;
-                write!(f, "({} ", op)?;
+                write!(f, "(")?;
                 self.fmt_node(f, &node1)?;
-                write!(f, " ")?;
+                write!(f, " {} ", op)?;
                 self.fmt_node(f, &node2)?;
                 write!(f, ")")?;
             }

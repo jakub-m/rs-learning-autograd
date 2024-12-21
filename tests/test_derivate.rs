@@ -16,7 +16,7 @@ fn compare_sin_cos() {
 #[ignore]
 #[test]
 fn compare_simple_adjoin() {
-    let eb = ExprBuilder::new();
+    let eb = new_eb();
     let x1 = eb.new_variable("x1");
     let x2 = eb.new_variable("x2");
     let y = x1 * x2;
@@ -35,6 +35,21 @@ fn compare_simple_adjoin() {
         cg.adjoin(x1)
     };
     assert_functions_similar(|x| x.sin(), &mut df, 100, 0.01, "compare_simple_adjoin");
+}
+
+#[test]
+fn sin_cos() {
+    let eb = new_eb();
+
+    let x = eb.new_variable("x");
+    // c is constant, but as of writing this code constants are not supported directly with, say, `x * 0.01`.
+    let c = eb.new_variable("c");
+    let y = x.sin() * (x * c).cos();
+    assert_eq!("(sin(x) * cos((x * c)))", format!("{}", y));
+}
+
+fn new_eb() -> ExprBuilder<FloatOperAry1, FloatOperAry2> {
+    ExprBuilder::<FloatOperAry1, FloatOperAry2>::new()
 }
 
 // TODO add tests for sin*cos

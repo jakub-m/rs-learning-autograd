@@ -86,7 +86,7 @@ mod tests {
         let x3 = x1 + x2;
         let x4 = x1 + x2;
         let z = x1 + x2 * x3 + x4;
-        assert_eq!("(+ (+ x1 (* x2 (+ x1 x2))) (+ x1 x2))", format!("{}", z));
+        assert_eq!("((x1 + (x2 * (x1 + x2))) + (x1 + x2))", format!("{}", z));
     }
 
     #[test]
