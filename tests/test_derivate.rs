@@ -35,3 +35,6 @@ fn compare_simple_adjoin() {
     };
     assert_functions_similar(|x| x.sin(), &mut df, 100, 0.01, "compare_simple_adjoin");
 }
+
+// TODO add tests for sin*cos
+// TODO add tests from HF or from YT
