@@ -46,6 +46,9 @@ fn sin_cos() {
     let c = eb.new_variable("c");
     let y = x.sin() * (x * c).cos();
     assert_eq!("(sin(x) * cos((x * c)))", format!("{}", y));
+
+    let mut df = |x: f32| 1.0;
+    assert_functions_similar(|x| x.sin() * (x * 0.1).cos(), &mut df, 100, 0.1, "sin_cos");
 }
 
 fn new_eb() -> ExprBuilder<FloatOperAry1, FloatOperAry2> {

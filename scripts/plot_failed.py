@@ -4,7 +4,7 @@ __generated_with = "0.8.15"
 app = marimo.App(width="medium")
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __():
     import marimo as mo
     import altair as alt
@@ -13,12 +13,12 @@ def __():
     return Path, alt, mo, pd
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(Path, alt, mo, pd):
-    filepath = Path("compare_simple_adjoin.csv")
+    filepath = Path(mo.cli_args()["file"])
     df = pd.read_csv(filepath, sep="\t")
 
-    chart = alt.Chart(df)
+    chart = alt.Chart(df, title=f"{filepath}")
     y1 = chart.encode(alt.X("x:Q"), alt.Y("y1:Q"))
     y2 = chart.encode(alt.X("x:Q"), alt.Y("y1:Q"), alt.Y2("y2:Q"))
     mo.ui.altair_chart(

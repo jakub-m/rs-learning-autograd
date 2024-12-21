@@ -22,3 +22,9 @@ My learning exercise to understand automatic gradient, and to exercise Rust.
 - Implement gradient descent with this autograd
 - Implement larger test cases (examples from YT and HF)
 - Train something
+
+## Using marimo to view test outputs
+
+```bash
+marimo edit scripts/plot_failed.py -- --file=sin_cos.csv
+```
