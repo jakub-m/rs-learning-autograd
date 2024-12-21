@@ -25,6 +25,9 @@ impl Calculator<FloatOperAry1, FloatOperAry2, f32> for FloatCalculator {
                     name_id
                 )
             }
+            Node::Ary1(op, ident1) => {
+                todo!()
+            }
             Node::Ary2(op, ident1, ident2) => match op {
                 FloatOperAry2::Add => {
                     let a = cg.forward(&ident1);
@@ -51,6 +54,7 @@ impl Calculator<FloatOperAry1, FloatOperAry2, f32> for FloatCalculator {
         let node = cg.get_node(ident);
         match node {
             Node::Variable(_) => (),
+            Node::Ary1(op, v1) => todo!(),
             Node::Ary2(op, v1, v2) => match op {
                 FloatOperAry2::Add => todo!(),
                 FloatOperAry2::Mul => {

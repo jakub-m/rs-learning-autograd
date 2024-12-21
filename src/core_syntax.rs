@@ -97,7 +97,12 @@ where
                     .to_owned();
                 write!(f, "{}", name)?;
             }
-            Node::Ary1(op, ident) => todo!(),
+            Node::Ary1(op, ident) => {
+                let node = id_to_node.get(ident).ok_or(fmt::Error)?;
+                write!(f, "{}(", op)?;
+                self.fmt_node(f, node)?;
+                write!(f, ")",)?;
+            }
             Node::Ary2(op, ident1, ident2) => {
                 let node1 = id_to_node.get(ident1).ok_or(fmt::Error)?;
                 let node2 = id_to_node.get(ident2).ok_or(fmt::Error)?;

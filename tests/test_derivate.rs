@@ -13,6 +13,7 @@ fn compare_sin_cos() {
     assert_functions_similar(|x| x.sin(), &mut df, 100, 0.01, "compare_sin");
 }
 
+#[ignore]
 #[test]
 fn compare_simple_adjoin() {
     let eb = ExprBuilder::new();

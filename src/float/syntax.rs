@@ -5,7 +5,9 @@ use crate::core_syntax::Operator;
 use crate::core_syntax::{Expr, Node};
 
 #[derive(Copy, Clone, Debug)]
-pub enum FloatOperAry1 {}
+pub enum FloatOperAry1 {
+    Cos,
+}
 
 // Bespoke set of Ary2 operations
 #[derive(Copy, Clone, Debug)]
@@ -19,7 +21,10 @@ impl Operator for FloatOperAry1 {}
 
 impl fmt::Display for FloatOperAry1 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        todo!()
+        let s = match self {
+            FloatOperAry1::Cos => "cos",
+        };
+        write!(f, "{}", s)
     }
 }
 
@@ -35,16 +40,18 @@ impl fmt::Display for FloatOperAry2 {
     }
 }
 
-impl<'a> ops::Add for Expr<'a, FloatOperAry1, FloatOperAry2> {
-    type Output = Expr<'a, FloatOperAry1, FloatOperAry2>;
+type ExprFloat<'a> = Expr<'a, FloatOperAry1, FloatOperAry2>;
+
+impl<'a> ops::Add for ExprFloat<'a> {
+    type Output = ExprFloat<'a>;
 
     fn add(self, rhs: Self) -> Self::Output {
         let node = Node::Ary2(FloatOperAry2::Add, self.ident, rhs.ident);
         self.register_and_continue_expr(node)
     }
 }
-impl<'a> ops::Mul for Expr<'a, FloatOperAry1, FloatOperAry2> {
-    type Output = Expr<'a, FloatOperAry1, FloatOperAry2>;
+impl<'a> ops::Mul for ExprFloat<'a> {
+    type Output = ExprFloat<'a>;
 
     fn mul(self, rhs: Self) -> Self::Output {
         let node = Node::Ary2(FloatOperAry2::Mul, self.ident, rhs.ident);
@@ -52,18 +59,38 @@ impl<'a> ops::Mul for Expr<'a, FloatOperAry1, FloatOperAry2> {
     }
 }
 
+impl<'a> ExprFloat<'a> {
+    pub fn cos(&self) -> ExprFloat<'a> {
+        let node = Node::Ary1(FloatOperAry1::Cos, self.ident);
+        self.register_and_continue_expr(node)
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    use super::{FloatOperAry1, FloatOperAry2};
     use crate::core_syntax::ExprBuilder;
 
     #[test]
     fn syntax() {
-        let eb = ExprBuilder::new();
+        let eb = new_eb();
         let x1 = eb.new_variable("x1");
         let x2 = eb.new_variable("x2");
         let x3 = x1 + x2;
         let x4 = x1 + x2;
         let z = x1 + x2 * x3 + x4;
         assert_eq!("(+ (+ x1 (* x2 (+ x1 x2))) (+ x1 x2))", format!("{}", z));
+    }
+
+    #[test]
+    fn cos() {
+        let eb = new_eb();
+        let x = eb.new_variable("x");
+        let y = x.cos();
+        assert_eq!("cos(x)", format!("{}", y));
+    }
+
+    fn new_eb() -> ExprBuilder<FloatOperAry1, FloatOperAry2> {
+        ExprBuilder::new()
     }
 }
