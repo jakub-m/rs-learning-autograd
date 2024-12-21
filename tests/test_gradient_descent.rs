@@ -61,6 +61,6 @@ fn test_gradient_descent_polynomial() {
     //);
 }
 
-fn new_eb() -> ExprBuilder<FloatOperAry1, FloatOperAry2> {
-    ExprBuilder::<FloatOperAry1, FloatOperAry2>::new()
+fn new_eb() -> ExprBuilder<f32, FloatOperAry1, FloatOperAry2> {
+    ExprBuilder::new()
 }

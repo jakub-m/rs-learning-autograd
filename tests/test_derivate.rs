@@ -3,7 +3,7 @@ use rs_autograd::{
     core_syntax::ExprBuilder,
     float::{
         calculator::FloatCalculator,
-        syntax::{FloatOperAry1, FloatOperAry2},
+        syntax::{AsConst, FloatOperAry1, FloatOperAry2},
     },
 };
 
@@ -74,26 +74,23 @@ fn sin_cos() {
     let eb = new_eb();
     let x = eb.new_variable("x");
     // c is constant, but as of writing this code constants are not supported directly with, say, `x * 0.01`.
-    let c = eb.new_variable("c");
-    let y = (x * c).sin() * x.cos();
-    assert_eq!("(sin((x * c)) * cos(x))", format!("{}", y));
+
+    let y = (x * 30.0.as_const(&eb)).sin() * x.cos();
+    assert_eq!("(sin((x * 30)) * cos(x))", format!("{}", y));
 
     // Compute.
-    let constant = 30.0;
     let x = x.ident();
-    let c = c.ident();
     let y = y.ident();
     let mut cg = ComputGraph::<f32, _, _>::new(eb, &FloatCalculator);
     let mut df = |x_inp: f32| {
         cg.reset();
         cg.set_variable(&x, x_inp);
-        cg.set_variable(&c, constant);
         cg.forward(&y);
         cg.backward(&y);
         cg.adjoin(&x)
     };
     assert_functions_similar(
-        |x| (x * constant).sin() * (x.cos()),
+        |x| (x * 30.0).sin() * (x.cos()),
         &mut df,
         &[
             Opts::Step(0.001),
@@ -108,17 +105,14 @@ fn sin_cos() {
 fn test_pow() {
     let eb = new_eb();
     let x = eb.new_variable("x1");
-    let c = eb.new_variable("c");
-    let y = x.pow(c);
+    let y = x.pow(2.0.as_const(&eb));
 
     let x = x.ident();
-    let c = c.ident();
     let y = y.ident();
     let mut cg = ComputGraph::<f32, _, _>::new(eb, &FloatCalculator);
     let mut df = |x_inp: f32| {
         cg.reset();
         cg.set_variable(&x, x_inp);
-        cg.set_variable(&c, 2.0);
         cg.forward(&y);
         cg.backward(&y);
         cg.adjoin(&x)
@@ -136,6 +130,6 @@ fn test_pow() {
     );
 }
 
-fn new_eb() -> ExprBuilder<FloatOperAry1, FloatOperAry2> {
-    ExprBuilder::<FloatOperAry1, FloatOperAry2>::new()
+fn new_eb() -> ExprBuilder<f32, FloatOperAry1, FloatOperAry2> {
+    ExprBuilder::new()
 }

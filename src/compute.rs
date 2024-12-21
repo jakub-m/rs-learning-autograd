@@ -11,7 +11,7 @@ impl AsRef<Ident> for Ident {
     }
 }
 
-impl<'a, OP1, OP2> AsRef<Ident> for Expr<'a, OP1, OP2>
+impl<'a, F, OP1, OP2> AsRef<Ident> for Expr<'a, F, OP1, OP2>
 where
     OP1: Operator,
     OP2: Operator,
@@ -42,7 +42,7 @@ where
     primals: RefCell<BTreeMap<Ident, F>>,
     /// Adjoins are updated during a backward pass.
     adjoins: RefCell<BTreeMap<Ident, F>>,
-    eb: ExprBuilder<OP1, OP2>,
+    eb: ExprBuilder<F, OP1, OP2>,
     calculator: &'a dyn Calculator<OP1, OP2, F>,
 }
 
@@ -55,7 +55,7 @@ where
     /// Take ownership of the expression builder, because it "freezes" the expression. The expression, as represented
     /// by the internal data structures of the expression builder, cannot change from now on.
     pub fn new<F2: ComputValue>(
-        eb: ExprBuilder<OP1, OP2>,
+        eb: ExprBuilder<F2, OP1, OP2>,
         calculator: &'a dyn Calculator<OP1, OP2, F2>,
     ) -> ComputGraph<'a, F2, OP1, OP2> {
         ComputGraph {
@@ -78,7 +78,7 @@ where
         }
     }
 
-    pub fn get_node(&self, ident: &Ident) -> Node<OP1, OP2> {
+    pub fn get_node(&self, ident: &Ident) -> Node<F, OP1, OP2> {
         let id_to_node = self.eb.id_to_node.borrow();
         let node = id_to_node
             .get(ident)
@@ -203,7 +203,7 @@ mod tests {
 
     #[test]
     fn compute_primal() {
-        let eb = ExprBuilder::new();
+        let eb = new_eb();
         let x1 = eb.new_variable("x1");
         let x2 = eb.new_variable("x2");
         let x3 = x1 + x2;
@@ -222,7 +222,7 @@ mod tests {
 
     #[test]
     fn compute_simple_tangent() {
-        let eb = ExprBuilder::new();
+        let eb = new_eb();
         let x1 = eb.new_variable("x1");
         let x2 = eb.new_variable("x2");
         let y = x1 * x2;
@@ -236,5 +236,9 @@ mod tests {
         cg.forward(&y);
         cg.backward(&y);
         assert_eq!(cg.adjoin(&x1), -4.0); // not sure if this is ok
+    }
+
+    fn new_eb() -> ExprBuilder<f32, FloatOperAry1, FloatOperAry2> {
+        ExprBuilder::<f32, FloatOperAry1, FloatOperAry2>::new()
     }
 }

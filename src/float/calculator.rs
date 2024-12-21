@@ -18,6 +18,7 @@ impl Calculator<FloatOperAry1, FloatOperAry2, f32> for FloatCalculator {
     fn forward(&self, cg: &ComputGraph<f32, FloatOperAry1, FloatOperAry2>, ident: &Ident) -> f32 {
         let node = cg.get_node(ident);
         match node {
+            Node::Const(value) => value,
             Node::Variable(name_id) => {
                 panic!(
                     "Variable not set {} {}",
@@ -75,6 +76,7 @@ impl Calculator<FloatOperAry1, FloatOperAry2, f32> for FloatCalculator {
         let node = cg.get_node(ident);
         match node {
             Node::Variable(_) => (),
+            Node::Const(_) => (),
             Node::Ary1(op, v1) => match op {
                 FloatOperAry1::Sin => {
                     let v1_p = cg.primal(&v1);

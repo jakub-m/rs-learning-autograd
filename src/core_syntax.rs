@@ -4,6 +4,8 @@ use std::cell::RefCell;
 use std::collections::{BTreeMap, HashSet};
 use std::fmt::{self, Display};
 
+use crate::compute::ComputValue;
+
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Debug, Hash)]
 pub struct Ident(usize);
 
@@ -45,11 +47,12 @@ impl<'a> From<&'a VariableNameId> for &'a Ident {
 pub trait Operator: Clone + Copy + fmt::Debug + fmt::Display {}
 
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
-pub enum Node<OP1, OP2>
+pub enum Node<F, OP1, OP2>
 where
     OP1: Operator,
     OP2: Operator,
 {
+    Const(F),
     Variable(VariableNameId),
     Ary1(OP1, Ident),
     Ary2(OP2, Ident, Ident),
@@ -57,36 +60,38 @@ where
 
 /// An identifier coupled with a reference to ExprBuilder, so it can be later used in further arithmetic operations.
 #[derive(Clone, Copy, Debug)]
-pub struct Expr<'a, OP1, OP2>
+pub struct Expr<'a, F, OP1, OP2>
 where
     OP1: Operator,
     OP2: Operator,
 {
     pub ident: Ident, // TODO make ident private? or remove ident() method?
 
-    // eb cannot be mut because mut is not Clone, therefore is not Copy, and we want Copy.
-    eb: &'a ExprBuilder<OP1, OP2>,
+    // eb cannot be mut because mut is not Clone, therefore is not Copy, and we want Copy to be able to do `a + b` on those expressions.
+    eb: &'a ExprBuilder<F, OP1, OP2>,
 }
 
-impl<'a, OP1, OP2> Expr<'a, OP1, OP2>
+impl<'a, F, OP1, OP2> Expr<'a, F, OP1, OP2>
 where
     OP1: Operator,
     OP2: Operator,
 {
-    pub fn register_and_continue_expr(&self, node: Node<OP1, OP2>) -> Expr<'a, OP1, OP2> {
-        let ident = self.eb.register(node);
+    pub fn register_and_continue_expr(&self, node: Node<F, OP1, OP2>) -> Expr<'a, F, OP1, OP2> {
+        let ident = self.eb.register_node(node);
         Expr { ident, eb: self.eb }
     }
 }
 
-impl<'a, OP1, OP2> Expr<'a, OP1, OP2>
+impl<'a, F, OP1, OP2> Expr<'a, F, OP1, OP2>
 where
+    F: ComputValue,
     OP1: Operator,
     OP2: Operator,
 {
-    fn fmt_node(&self, f: &mut fmt::Formatter<'_>, node: &Node<OP1, OP2>) -> fmt::Result {
+    fn fmt_node(&self, f: &mut fmt::Formatter<'_>, node: &Node<F, OP1, OP2>) -> fmt::Result {
         let id_to_node = self.eb.id_to_node.borrow();
         match node {
+            Node::Const(value) => write!(f, "{}", value)?,
             Node::Variable(name_id) => {
                 let name = self
                     .eb
@@ -121,8 +126,9 @@ where
     }
 }
 
-impl<'a, OP1, OP2> fmt::Display for Expr<'a, OP1, OP2>
+impl<'a, F, OP1, OP2> fmt::Display for Expr<'a, F, OP1, OP2>
 where
+    F: ComputValue,
     OP1: Operator,
     OP2: Operator,
 {
@@ -134,23 +140,23 @@ where
 }
 
 #[derive(Debug)]
-pub struct ExprBuilder<OP1, OP2>
+pub struct ExprBuilder<F, OP1, OP2>
 where
     OP1: Operator,
     OP2: Operator,
 {
     /// The map contains expression trees with references.
-    pub(super) id_to_node: RefCell<BTreeMap<Ident, Node<OP1, OP2>>>,
+    pub(super) id_to_node: RefCell<BTreeMap<Ident, Node<F, OP1, OP2>>>,
     pub(super) id_to_name: RefCell<BTreeMap<VariableNameId, String>>,
     pub(super) name_set: RefCell<HashSet<String>>,
 }
 
-impl<'a, OP1, OP2> ExprBuilder<OP1, OP2>
+impl<'a, F, OP1, OP2> ExprBuilder<F, OP1, OP2>
 where
     OP1: Operator,
     OP2: Operator,
 {
-    pub fn new() -> ExprBuilder<OP1, OP2> {
+    pub fn new() -> ExprBuilder<F, OP1, OP2> {
         ExprBuilder {
             id_to_node: RefCell::new(BTreeMap::new()),
             id_to_name: RefCell::new(BTreeMap::new()),
@@ -158,7 +164,7 @@ where
         }
     }
 
-    pub fn new_variable(&'a self, name: &str) -> Expr<'a, OP1, OP2> {
+    pub fn new_variable(&'a self, name: &str) -> Expr<'a, F, OP1, OP2> {
         let ident = self.new_ident();
         let name_id: VariableNameId = ident.into();
 
@@ -181,9 +187,14 @@ where
         Expr { eb: &self, ident }
     }
 
+    pub fn register_node_get_expr(&'a self, node: Node<F, OP1, OP2>) -> Expr<'a, F, OP1, OP2> {
+        let ident = self.register_node(node);
+        Expr { ident, eb: self }
+    }
+
     /// register is a mutable operation on self.map. `register` is not explicitly mut, to allow Copy and
     /// ergonomic arithmetic syntax.
-    fn register(&self, node: Node<OP1, OP2>) -> Ident {
+    fn register_node(&self, node: Node<F, OP1, OP2>) -> Ident {
         let ident = self.new_ident();
         let mut map = self.id_to_node.borrow_mut();
         map.insert(ident, node);

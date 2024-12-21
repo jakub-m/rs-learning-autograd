@@ -1,6 +1,7 @@
 use std::fmt;
 use std::ops;
 
+use crate::core_syntax::ExprBuilder;
 use crate::core_syntax::Operator;
 use crate::core_syntax::{Expr, Node};
 
@@ -49,7 +50,7 @@ impl fmt::Display for FloatOperAry2 {
     }
 }
 
-type ExprFloat<'a> = Expr<'a, FloatOperAry1, FloatOperAry2>;
+type ExprFloat<'a> = Expr<'a, f32, FloatOperAry1, FloatOperAry2>;
 
 impl<'a> ops::Add for ExprFloat<'a> {
     type Output = ExprFloat<'a>;
@@ -100,9 +101,21 @@ impl<'a> ExprFloat<'a> {
     }
 }
 
+pub trait AsConst {
+    /// Produce a constant out of a float.
+    fn as_const(self, eb: &ExprBuilder<f32, FloatOperAry1, FloatOperAry2>) -> ExprFloat;
+}
+
+impl AsConst for f32 {
+    fn as_const(self, eb: &ExprBuilder<f32, FloatOperAry1, FloatOperAry2>) -> ExprFloat {
+        let node = Node::Const(self);
+        eb.register_node_get_expr(node)
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{FloatOperAry1, FloatOperAry2};
+    use super::{AsConst, FloatOperAry1, FloatOperAry2};
     use crate::core_syntax::ExprBuilder;
 
     #[test]
@@ -124,7 +137,16 @@ mod tests {
         assert_eq!("sin(cos(x))", format!("{}", y));
     }
 
-    fn new_eb() -> ExprBuilder<FloatOperAry1, FloatOperAry2> {
+    #[test]
+    fn const_value() {
+        let eb = new_eb();
+        let x = eb.new_variable("x");
+        let y = x + 2.0.as_const(&eb);
+        // 1.0.as_const(eb)
+        // eb.const(1.0)
+    }
+
+    fn new_eb() -> ExprBuilder<f32, FloatOperAry1, FloatOperAry2> {
         ExprBuilder::new()
     }
 }
