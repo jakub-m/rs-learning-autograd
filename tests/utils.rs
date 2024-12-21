@@ -31,7 +31,7 @@ where
     let mut y1_values: Vec<f32> = vec![];
     let mut y2_values: Vec<f32> = vec![];
     let mut x_values: Vec<f32> = vec![];
-    let mut y2 = f(0.0);
+    let mut y2 = f(start);
     assert!(step > 0.0);
     assert!(start <= end);
     let n = ((end - start) / step) as usize;
