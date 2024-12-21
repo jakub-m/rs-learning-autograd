@@ -71,12 +71,12 @@ impl Calculator<FloatOperAry1, FloatOperAry2, f32> for FloatCalculator {
         match node {
             Node::Variable(_) => (),
             Node::Ary1(op, v1) => match op {
-                FloatOperAry1::Cos => {
+                FloatOperAry1::Sin => {
                     let v1_p = cg.primal(&v1);
                     let v1_ad = v1_p.cos();
                     self.backward(cg, &v1, adjoin * v1_ad);
                 }
-                FloatOperAry1::Sin => {
+                FloatOperAry1::Cos => {
                     let v1_p = cg.primal(&v1);
                     let v1_ad = -1.0 * v1_p.sin();
                     self.backward(cg, &v1, adjoin * v1_ad);

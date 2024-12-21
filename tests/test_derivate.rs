@@ -10,7 +10,7 @@ use rs_autograd::{
 use approx_eq::assert_approx_eq;
 
 mod utils;
-use utils::assert_functions_similar;
+use utils::{assert_functions_similar, assert_functions_similar2, Opts};
 
 #[test]
 fn compare_sin_cos() {
@@ -47,7 +47,6 @@ fn compare_simple_adjoin() {
     );
 }
 
-#[ignore]
 #[test]
 fn sin_cos() {
     let eb = new_eb();
@@ -71,12 +70,14 @@ fn sin_cos() {
         cg.backward(&y);
         cg.adjoin(&x)
     };
-    assert_functions_similar(
+    assert_functions_similar2(
         |x| (x * constant).sin() * (x.cos()),
         &mut df,
-        0.01,
-        3.14 / 2.0,
-        "sin_cos",
+        &[
+            Opts::Step(0.001),
+            Opts::End(3.14 / 1.0),
+            Opts::TestName("sin_cos"),
+        ],
     );
 }
 
@@ -121,8 +122,6 @@ fn test_hf() {
     assert_approx_eq!(cg.adjoin(&v1) as f64, 1.0, eps);
     assert_approx_eq!(cg.adjoin(&x2) as f64, 4.0, eps);
     assert_approx_eq!(cg.adjoin(&x1) as f64, -4.33, eps);
-
-    //cg.add_adjoin(&, adjoin);
 }
 
 fn new_eb() -> ExprBuilder<FloatOperAry1, FloatOperAry2> {

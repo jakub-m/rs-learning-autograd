@@ -1,5 +1,32 @@
 use std::{fs::File, io::Write};
 
+pub enum Opts<'a> {
+    Step(f32),
+    End(f32),
+    TestName(&'a str),
+    EpsPrc(f32),
+}
+
+pub fn assert_functions_similar2<F1, F2>(f: F1, df: &mut F2, opts: &[Opts])
+where
+    F1: Fn(f32) -> f32,
+    F2: FnMut(f32) -> f32,
+{
+    let mut step = 0.01;
+    let mut end = 1.0;
+    let mut name = "unknown";
+    let mut eps_prc = 0.01;
+    for opt in opts {
+        match opt {
+            Opts::Step(v) => step = *v,
+            Opts::End(v) => end = *v,
+            Opts::TestName(v) => name = *v,
+            Opts::EpsPrc(v) => eps_prc = *v,
+        };
+    }
+    assert_functions_similar(f, df, step, end, name)
+}
+
 pub fn assert_functions_similar<F1, F2>(f: F1, df: &mut F2, step: f32, end: f32, test_name: &str)
 where
     F1: Fn(f32) -> f32,
