@@ -20,7 +20,7 @@ def __(mo):
     return button_reload,
 
 
-@app.cell(hide_code=True)
+@app.cell
 def __(Path, alt, button_reload, mo, pd):
     button_reload
 
@@ -29,12 +29,17 @@ def __(Path, alt, button_reload, mo, pd):
 
     chart = alt.Chart(df, title=f"{filepath}")
     y1 = chart.encode(alt.X("x:Q"), alt.Y("y1:Q"))
-    #y2 = chart.encode(alt.X("x:Q"), alt.Y("y1:Q"), alt.Y2("y2:Q"))
     y2 = chart.encode(alt.X("x:Q"), alt.Y("y2:Q"))
     mo.ui.altair_chart(
         y1.mark_line(color="black") + y2.mark_line(color="red")
     )
     return chart, df, filepath, y1, y2
+
+
+@app.cell
+def __(df):
+    df["delta"](df["y2"] - df["y1"]) / df["y1"]
+    return
 
 
 if __name__ == "__main__":

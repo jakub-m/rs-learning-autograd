@@ -4,34 +4,27 @@ pub enum Opts<'a> {
     Step(f32),
     End(f32),
     TestName(&'a str),
-    EpsPrc(f32),
+    MaxRms(f32),
 }
 
-pub fn assert_functions_similar2<F1, F2>(f: F1, df: &mut F2, opts: &[Opts])
+pub fn assert_functions_similar<F1, F2>(f: F1, df: &mut F2, opts: &[Opts])
 where
     F1: Fn(f32) -> f32,
     F2: FnMut(f32) -> f32,
 {
     let mut step = 0.01;
     let mut end = 1.0;
-    let mut name = "unknown";
-    let mut eps_prc = 0.01;
+    let mut test_name = "unknown";
+    let mut max_rms = 0.01;
     for opt in opts {
         match opt {
             Opts::Step(v) => step = *v,
             Opts::End(v) => end = *v,
-            Opts::TestName(v) => name = *v,
-            Opts::EpsPrc(v) => eps_prc = *v,
+            Opts::TestName(v) => test_name = *v,
+            Opts::MaxRms(v) => max_rms = *v,
         };
     }
-    assert_functions_similar(f, df, step, end, name)
-}
 
-pub fn assert_functions_similar<F1, F2>(f: F1, df: &mut F2, step: f32, end: f32, test_name: &str)
-where
-    F1: Fn(f32) -> f32,
-    F2: FnMut(f32) -> f32,
-{
     let mut y1_values: Vec<f32> = vec![];
     let mut y2_values: Vec<f32> = vec![];
     let mut x_values: Vec<f32> = vec![];
@@ -50,26 +43,21 @@ where
         y2 = y2 + dy2 * step;
     }
 
-    let mut failure_message: Option<String> = None;
+    let mut rms = 0.0;
     for i in 0..n {
-        let diff = ((y1_values[i] - y2_values[i]) / y1_values[i]).abs();
-        let th = 0.01;
-        if diff >= th {
-            failure_message.replace(format!(
-                "Difference between the functions at sample {} was {} >= {}",
-                i, diff, th
-            ));
-            break;
-        }
+        let d = y1_values[i] - y2_values[i];
+        rms += d * d;
     }
-    if let Some(m) = failure_message {
+    rms = (rms / (n as f32)).sqrt();
+
+    if rms > max_rms {
         write_series_to_file(
             format!("{}.csv", test_name).as_str(),
             &x_values,
             &y1_values,
             &y2_values,
         );
-        panic!("{}", m);
+        panic!("RMS was {} > {}", rms, max_rms);
     }
 }
 

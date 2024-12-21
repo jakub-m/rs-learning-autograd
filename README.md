@@ -8,6 +8,7 @@ My learning exercise to understand automatic gradient, and to exercise Rust.
 - `From` tuple to Composite simplifies syntax
 - Rust forces you to separate the concepts, like expression builder from computation, otherwise the problem becomes to
   entangled. When separated, the problems can be nicely implemented.
+- You can have optional arguments in a function with `&[Opts]`, where `Opts` is an enum.
 
 ## Materials
 

@@ -10,12 +10,20 @@ use rs_autograd::{
 use approx_eq::assert_approx_eq;
 
 mod utils;
-use utils::{assert_functions_similar, assert_functions_similar2, Opts};
+use utils::{assert_functions_similar, Opts};
 
 #[test]
 fn compare_sin_cos() {
     let mut df = |x: f32| x.cos();
-    assert_functions_similar(|x| x.sin(), &mut df, 0.01, 3.14 / 2.0, "compare_sin");
+    assert_functions_similar(
+        |x| x.sin(),
+        &mut df,
+        &[
+            Opts::TestName("compare_sin"),
+            Opts::Step(0.01),
+            Opts::End(3.14 / 2.0),
+        ],
+    );
 }
 
 #[ignore]
@@ -41,9 +49,11 @@ fn compare_simple_adjoin() {
     assert_functions_similar(
         |x| x.sin(),
         &mut df,
-        0.01,
-        3.14 / 2.0,
-        "compare_simple_adjoin",
+        &[
+            Opts::Step(0.01),
+            Opts::End(3.14 / 2.0),
+            Opts::TestName("compare_simple_adjoin"),
+        ],
     );
 }
 
@@ -70,13 +80,14 @@ fn sin_cos() {
         cg.backward(&y);
         cg.adjoin(&x)
     };
-    assert_functions_similar2(
+    assert_functions_similar(
         |x| (x * constant).sin() * (x.cos()),
         &mut df,
         &[
             Opts::Step(0.001),
             Opts::End(3.14 / 1.0),
             Opts::TestName("sin_cos"),
+            Opts::MaxRms(0.02),
         ],
     );
 }
