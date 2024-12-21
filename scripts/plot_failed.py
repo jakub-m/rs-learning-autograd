@@ -9,8 +9,16 @@ def __():
     import marimo as mo
     import altair as alt
     import pandas as pd
+    import os
     from pathlib import Path
-    return Path, alt, mo, pd
+    return Path, alt, mo, os, pd
+
+
+@app.cell
+def __(mo):
+    file_browser = mo.ui.file_browser(multiple=False, restrict_navigation=True, filetypes=[".csv"])
+    file_browser
+    return file_browser,
 
 
 @app.cell(hide_code=True)
@@ -20,26 +28,30 @@ def __(mo):
     return button_reload,
 
 
-@app.cell
-def __(Path, alt, button_reload, mo, pd):
+@app.cell(hide_code=True)
+def __(Path, file_browser, mo):
+    if file_browser.value:
+        filepath = file_browser.value[0].path
+    else:
+        filepath = mo.cli_args().get("file")
+    filepath = Path(filepath)
+    filepath.exists()
+    return filepath,
+
+
+@app.cell(hide_code=True)
+def __(alt, button_reload, filepath, mo, os, pd):
     button_reload
 
-    filepath = Path(mo.cli_args()["file"])
     df = pd.read_csv(filepath, sep="\t")
 
-    chart = alt.Chart(df, title=f"{filepath}")
+    chart = alt.Chart(df, title=f"{filepath.relative_to(os.getcwd())}")
     y1 = chart.encode(alt.X("x:Q"), alt.Y("y1:Q"))
     y2 = chart.encode(alt.X("x:Q"), alt.Y("y2:Q"))
     mo.ui.altair_chart(
         y1.mark_line(color="black") + y2.mark_line(color="red")
     )
-    return chart, df, filepath, y1, y2
-
-
-@app.cell
-def __(df):
-    df["delta"](df["y2"] - df["y1"]) / df["y1"]
-    return
+    return chart, df, y1, y2
 
 
 if __name__ == "__main__":

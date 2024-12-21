@@ -87,7 +87,7 @@ fn sin_cos() {
             Opts::Step(0.001),
             Opts::End(3.14 / 1.0),
             Opts::TestName("sin_cos"),
-            Opts::MaxRms(0.02),
+            Opts::MaxRms(0.01),
         ],
     );
 }
