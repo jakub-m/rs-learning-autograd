@@ -11,8 +11,9 @@ impl AsRef<Ident> for Ident {
     }
 }
 
-impl<'a, OP2> AsRef<Ident> for Expr<'a, OP2>
+impl<'a, OP1, OP2> AsRef<Ident> for Expr<'a, OP1, OP2>
 where
+    OP1: Operator,
     OP2: Operator,
 {
     fn as_ref(&self) -> &Ident {
@@ -31,30 +32,32 @@ pub trait DefaultAdjoin {
 }
 
 /// "Freezes" the expression tree by taking ownership of the expression builder.
-pub struct ComputGraph<'a, F, OP2>
+pub struct ComputGraph<'a, F, OP1, OP2>
 where
     F: ComputValue,
+    OP1: Operator,
     OP2: Operator,
 {
     /// Primals are computed during a forward pass.
     primals: RefCell<BTreeMap<Ident, F>>,
     /// Adjoins are updated during a backward pass.
     adjoins: RefCell<BTreeMap<Ident, F>>,
-    eb: ExprBuilder<OP2>,
-    calculator: &'a dyn Calculator<OP2, F>,
+    eb: ExprBuilder<OP1, OP2>,
+    calculator: &'a dyn Calculator<OP1, OP2, F>,
 }
 
-impl<'a, F, OP2> ComputGraph<'a, F, OP2>
+impl<'a, F, OP1, OP2> ComputGraph<'a, F, OP1, OP2>
 where
     F: ComputValue,
+    OP1: Operator,
     OP2: Operator,
 {
     /// Take ownership of the expression builder, because it "freezes" the expression. The expression, as represented
     /// by the internal data structures of the expression builder, cannot change from now on.
     pub fn new<F2: ComputValue>(
-        eb: ExprBuilder<OP2>,
-        calculator: &'a dyn Calculator<OP2, F2>,
-    ) -> ComputGraph<'a, F2, OP2> {
+        eb: ExprBuilder<OP1, OP2>,
+        calculator: &'a dyn Calculator<OP1, OP2, F2>,
+    ) -> ComputGraph<'a, F2, OP1, OP2> {
         ComputGraph {
             primals: RefCell::new(BTreeMap::new()),
             adjoins: RefCell::new(BTreeMap::new()),
@@ -75,7 +78,7 @@ where
         }
     }
 
-    pub fn get_node(&self, ident: &Ident) -> Node<OP2> {
+    pub fn get_node(&self, ident: &Ident) -> Node<OP1, OP2> {
         let id_to_node = self.eb.id_to_node.borrow();
         let node = id_to_node
             .get(ident)
@@ -169,9 +172,10 @@ where
 }
 
 /// Take node and return a calculated value.
-pub trait Calculator<OP2, F>
+pub trait Calculator<OP1, OP2, F>
 where
     F: ComputValue,
+    OP1: Operator,
     OP2: Operator,
 {
     /// Take node and return a computed value for it. The passed computational graph allows querying for the
@@ -180,10 +184,10 @@ where
     ///
     /// Usually, `calculate_primal` should not be called for `Node::Variable` since all the variables should
     /// be set beforehand with `set_variable`. It's ok to `panic` on Node::Variable.
-    fn forward(&self, cg: &ComputGraph<F, OP2>, ident: &Ident) -> F;
+    fn forward(&self, cg: &ComputGraph<F, OP1, OP2>, ident: &Ident) -> F;
 
     /// The implementation of the backward pass is responsible for updating partial adjoins though ComputGraph.
-    fn backward(&self, cg: &ComputGraph<F, OP2>, ident: &Ident, adjoin: F);
+    fn backward(&self, cg: &ComputGraph<F, OP1, OP2>, ident: &Ident, adjoin: F);
 }
 
 #[cfg(test)]
@@ -191,7 +195,10 @@ mod tests {
     use super::ComputGraph;
     use crate::{
         core_syntax::ExprBuilder,
-        float::{calculator::FloatCalculator, syntax::FloatOper},
+        float::{
+            calculator::FloatCalculator,
+            syntax::{FloatOperAry1, FloatOperAry2},
+        },
     };
 
     #[test]
@@ -206,7 +213,7 @@ mod tests {
         let x1 = x1.ident();
         let x2 = x2.ident();
         let e = e.ident();
-        let mut cg = ComputGraph::<f32, FloatOper>::new(eb, &FloatCalculator);
+        let mut cg = ComputGraph::<f32, FloatOperAry1, FloatOperAry2>::new(eb, &FloatCalculator);
         cg.set_variable(&x1, 3.0);
         cg.set_variable(&x2, 5.0);
         let p = cg.forward(&e);
@@ -223,7 +230,7 @@ mod tests {
         let x1 = x1.ident();
         let x2 = x2.ident();
         let y = y.ident();
-        let mut cg = ComputGraph::<f32, FloatOper>::new(eb, &FloatCalculator);
+        let mut cg = ComputGraph::<f32, FloatOperAry1, FloatOperAry2>::new(eb, &FloatCalculator);
         cg.set_variable(&x1, 3.0);
         cg.set_variable(&x2, -4.0);
         cg.forward(&y);

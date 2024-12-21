@@ -1,7 +1,7 @@
 use rs_autograd::{
     compute::ComputGraph,
     core_syntax::ExprBuilder,
-    float::{calculator::FloatCalculator, syntax::FloatOper},
+    float::{calculator::FloatCalculator, syntax::FloatOperAry1, syntax::FloatOperAry2},
 };
 
 mod utils;
@@ -23,7 +23,7 @@ fn compare_simple_adjoin() {
     let x1 = &x1.ident();
     let x2 = &x2.ident();
     let y = &y.ident();
-    let mut cg = ComputGraph::<f32, FloatOper>::new(eb, &FloatCalculator);
+    let mut cg = ComputGraph::<f32, FloatOperAry1, FloatOperAry2>::new(eb, &FloatCalculator);
     let mut df = |x: f32| {
         cg.reset();
         cg.set_variable(&x1, x);

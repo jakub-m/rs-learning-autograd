@@ -3,7 +3,8 @@ use crate::{
     core_syntax::{Ident, Node},
 };
 
-use super::syntax::FloatOper;
+use super::syntax::FloatOperAry1;
+use super::syntax::FloatOperAry2;
 
 pub struct FloatCalculator;
 impl ComputValue for f32 {}
@@ -13,8 +14,8 @@ impl DefaultAdjoin for f32 {
     }
 }
 
-impl Calculator<FloatOper, f32> for FloatCalculator {
-    fn forward(&self, cg: &ComputGraph<f32, FloatOper>, ident: &Ident) -> f32 {
+impl Calculator<FloatOperAry1, FloatOperAry2, f32> for FloatCalculator {
+    fn forward(&self, cg: &ComputGraph<f32, FloatOperAry1, FloatOperAry2>, ident: &Ident) -> f32 {
         let node = cg.get_node(ident);
         match node {
             Node::Variable(name_id) => {
@@ -25,12 +26,12 @@ impl Calculator<FloatOper, f32> for FloatCalculator {
                 )
             }
             Node::Ary2(op, ident1, ident2) => match op {
-                FloatOper::Add => {
+                FloatOperAry2::Add => {
                     let a = cg.forward(&ident1);
                     let b = cg.forward(&ident2);
                     a + b
                 }
-                FloatOper::Mul => {
+                FloatOperAry2::Mul => {
                     let a = cg.forward(&ident1);
                     let b = cg.forward(&ident2);
                     a * b
@@ -40,14 +41,19 @@ impl Calculator<FloatOper, f32> for FloatCalculator {
         }
     }
 
-    fn backward(&self, cg: &ComputGraph<f32, FloatOper>, ident: &Ident, adjoin: f32) {
+    fn backward(
+        &self,
+        cg: &ComputGraph<f32, FloatOperAry1, FloatOperAry2>,
+        ident: &Ident,
+        adjoin: f32,
+    ) {
         cg.add_adjoin(ident, adjoin); // TODO move to common place?
         let node = cg.get_node(ident);
         match node {
             Node::Variable(_) => (),
             Node::Ary2(op, v1, v2) => match op {
-                FloatOper::Add => todo!(),
-                FloatOper::Mul => {
+                FloatOperAry2::Add => todo!(),
+                FloatOperAry2::Mul => {
                     let v1_p = cg.primal(&v1);
                     let v2_p = cg.primal(&v2);
                     let v1_ad = adjoin * v2_p;
