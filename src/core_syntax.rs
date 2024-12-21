@@ -49,12 +49,17 @@ pub trait Operator: Clone + Copy + fmt::Debug + fmt::Display {}
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Node<F, OP1, OP2>
 where
+    F: ComputValue,
     OP1: Operator,
     OP2: Operator,
 {
+    /// A constant value.
     Const(F),
+    /// A named variable.
     Variable(VariableNameId),
+    /// Arity-1 operation, like ln or sin.
     Ary1(OP1, Ident),
+    /// Arity-2 operation, like addition.
     Ary2(OP2, Ident, Ident),
 }
 
@@ -62,6 +67,7 @@ where
 #[derive(Clone, Copy, Debug)]
 pub struct Expr<'a, F, OP1, OP2>
 where
+    F: ComputValue,
     OP1: Operator,
     OP2: Operator,
 {
@@ -73,6 +79,7 @@ where
 
 impl<'a, F, OP1, OP2> Expr<'a, F, OP1, OP2>
 where
+    F: ComputValue,
     OP1: Operator,
     OP2: Operator,
 {
@@ -142,6 +149,7 @@ where
 #[derive(Debug)]
 pub struct ExprBuilder<F, OP1, OP2>
 where
+    F: ComputValue,
     OP1: Operator,
     OP2: Operator,
 {
@@ -153,6 +161,7 @@ where
 
 impl<'a, F, OP1, OP2> ExprBuilder<F, OP1, OP2>
 where
+    F: ComputValue,
     OP1: Operator,
     OP2: Operator,
 {

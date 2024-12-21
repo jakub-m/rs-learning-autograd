@@ -13,6 +13,7 @@ impl AsRef<Ident> for Ident {
 
 impl<'a, F, OP1, OP2> AsRef<Ident> for Expr<'a, F, OP1, OP2>
 where
+    F: ComputValue,
     OP1: Operator,
     OP2: Operator,
 {
