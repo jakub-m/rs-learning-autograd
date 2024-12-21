@@ -48,7 +48,7 @@ def __(alt, filepath, mo, os, pd):
     y1 = chart.encode(alt.X("x:Q"), alt.Y("y1:Q"))
     y2 = chart.encode(alt.X("x:Q"), alt.Y("y2:Q"))
     mo.ui.altair_chart(
-        y1.mark_line(color="black") + y2.mark_line(color="red")
+        y1.mark_line(color="black") + y2.mark_line(color="red", strokeDash=[10,5])
     )
     return chart, df, y1, y2
 

@@ -55,6 +55,11 @@ impl Calculator<FloatOperAry1, FloatOperAry2, f32> for FloatCalculator {
                     let b = cg.forward(&ident2);
                     a * b
                 }
+                FloatOperAry2::Pow => {
+                    let a = cg.forward(&ident1);
+                    let b = cg.forward(&ident2);
+                    a.powf(b)
+                }
             }
             .into(),
         }
@@ -101,6 +106,15 @@ impl Calculator<FloatOperAry1, FloatOperAry2, f32> for FloatCalculator {
                     let v2_p = cg.primal(&v2);
                     self.backward(cg, &v1, adjoin * v2_p);
                     self.backward(cg, &v2, adjoin * v1_p);
+                }
+                FloatOperAry2::Pow => {
+                    // For y=a^b, the derivatives are:
+                    // dy/da = b*a^(b-1)
+                    // dy/db = (a^b)*ln(a)
+                    let a = cg.primal(&v1);
+                    let b = cg.primal(&v2);
+                    self.backward(cg, &v1, adjoin * (b * a.powf(b - 1.0)));
+                    self.backward(cg, &v2, adjoin * (a.powf(b) * a.ln()));
                 }
             },
         }

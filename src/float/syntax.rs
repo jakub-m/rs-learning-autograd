@@ -17,6 +17,8 @@ pub enum FloatOperAry2 {
     Add,
     Sub,
     Mul,
+    /// Power to float.
+    Pow,
 }
 
 /// TODO Just a marker trait. How to remove necessity of explicit `impl Operator for FloatOper`?
@@ -41,6 +43,7 @@ impl fmt::Display for FloatOperAry2 {
             FloatOperAry2::Add => "+",
             FloatOperAry2::Mul => "*",
             FloatOperAry2::Sub => "-",
+            FloatOperAry2::Pow => "^",
         };
         write!(f, "{}", s)
     }
@@ -88,6 +91,11 @@ impl<'a> ExprFloat<'a> {
 
     pub fn ln(&self) -> ExprFloat<'a> {
         let node = Node::Ary1(FloatOperAry1::Ln, self.ident);
+        self.register_and_continue_expr(node)
+    }
+
+    pub fn pow(&self, p: Self) -> ExprFloat<'a> {
+        let node = Node::Ary2(FloatOperAry2::Pow, self.ident, p.ident);
         self.register_and_continue_expr(node)
     }
 }

@@ -103,6 +103,39 @@ fn sin_cos() {
         ],
     );
 }
+
+#[test]
+fn test_pow() {
+    let eb = new_eb();
+    let x = eb.new_variable("x1");
+    let c = eb.new_variable("c");
+    let y = x.pow(c);
+
+    let x = x.ident();
+    let c = c.ident();
+    let y = y.ident();
+    let mut cg = ComputGraph::<f32, _, _>::new(eb, &FloatCalculator);
+    let mut df = |x_inp: f32| {
+        cg.reset();
+        cg.set_variable(&x, x_inp);
+        cg.set_variable(&c, 2.0);
+        cg.forward(&y);
+        cg.backward(&y);
+        cg.adjoin(&x)
+    };
+
+    assert_functions_similar(
+        |x| x.powf(2.0),
+        &mut df,
+        &[
+            Opts::Step(0.01),
+            Opts::End(5.0),
+            Opts::TestName("pow"),
+            Opts::MaxRms(0.03),
+        ],
+    );
+}
+
 fn new_eb() -> ExprBuilder<FloatOperAry1, FloatOperAry2> {
     ExprBuilder::<FloatOperAry1, FloatOperAry2>::new()
 }

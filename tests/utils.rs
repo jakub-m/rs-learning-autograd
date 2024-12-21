@@ -2,6 +2,7 @@ use std::{fs::File, io::Write};
 
 pub enum Opts<'a> {
     Step(f32),
+    Start(f32),
     End(f32),
     TestName(&'a str),
     MaxRms(f32),
@@ -16,9 +17,11 @@ where
     let mut end = 1.0;
     let mut test_name = "unknown";
     let mut max_rms = 0.01;
+    let mut start = 0.0;
     for opt in opts {
         match opt {
             Opts::Step(v) => step = *v,
+            Opts::Start(v) => start = *v,
             Opts::End(v) => end = *v,
             Opts::TestName(v) => test_name = *v,
             Opts::MaxRms(v) => max_rms = *v,
@@ -30,9 +33,10 @@ where
     let mut x_values: Vec<f32> = vec![];
     let mut y2 = f(0.0);
     assert!(step > 0.0);
-    let n = (end / step) as usize;
+    assert!(start <= end);
+    let n = ((end - start) / step) as usize;
     assert!(n >= 10);
-    for x in (0..n).map(|f| (f as f32) * step) {
+    for x in (0..n).map(|i| (i as f32) * step + start) {
         x_values.push(x);
         let y1 = f(x);
         y1_values.push(y1);
