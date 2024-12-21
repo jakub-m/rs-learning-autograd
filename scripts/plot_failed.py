@@ -14,7 +14,16 @@ def __():
 
 
 @app.cell(hide_code=True)
-def __(Path, alt, mo, pd):
+def __(mo):
+    button_reload = mo.ui.button(label="Reload")
+    button_reload
+    return button_reload,
+
+
+@app.cell
+def __(Path, alt, button_reload, mo, pd):
+    button_reload
+
     filepath = Path(mo.cli_args()["file"])
     df = pd.read_csv(filepath, sep="\t")
 

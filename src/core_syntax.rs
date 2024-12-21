@@ -62,7 +62,7 @@ where
     OP1: Operator,
     OP2: Operator,
 {
-    pub ident: Ident,
+    pub ident: Ident, // TODO make ident private? or remove ident() method?
 
     // eb cannot be mut because mut is not Clone, therefore is not Copy, and we want Copy.
     eb: &'a ExprBuilder<OP1, OP2>,
