@@ -7,6 +7,7 @@ use crate::core_syntax::{Expr, Node};
 #[derive(Copy, Clone, Debug)]
 pub enum FloatOperAry1 {
     Cos,
+    Sin,
 }
 
 // Bespoke set of Ary2 operations
@@ -23,6 +24,7 @@ impl fmt::Display for FloatOperAry1 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let s = match self {
             FloatOperAry1::Cos => "cos",
+            FloatOperAry1::Sin => "sin",
         };
         write!(f, "{}", s)
     }
@@ -64,6 +66,11 @@ impl<'a> ExprFloat<'a> {
         let node = Node::Ary1(FloatOperAry1::Cos, self.ident);
         self.register_and_continue_expr(node)
     }
+
+    pub fn sin(&self) -> ExprFloat<'a> {
+        let node = Node::Ary1(FloatOperAry1::Sin, self.ident);
+        self.register_and_continue_expr(node)
+    }
 }
 
 #[cfg(test)]
@@ -86,8 +93,8 @@ mod tests {
     fn cos() {
         let eb = new_eb();
         let x = eb.new_variable("x");
-        let y = x.cos();
-        assert_eq!("cos(x)", format!("{}", y));
+        let y = x.cos().sin();
+        assert_eq!("sin(cos(x))", format!("{}", y));
     }
 
     fn new_eb() -> ExprBuilder<FloatOperAry1, FloatOperAry2> {
