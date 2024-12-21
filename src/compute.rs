@@ -190,7 +190,8 @@ where
 mod tests {
     use super::ComputGraph;
     use crate::{
-        core_syntax::ExprBuilder, float_calculator::FloatCalculator, float_syntax::FloatOper,
+        core_syntax::ExprBuilder,
+        float::{calculator::FloatCalculator, syntax::FloatOper},
     };
 
     #[test]

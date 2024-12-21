@@ -1,4 +1,3 @@
-//! An exemplary implementation of core syntax for float type.
 use std::fmt;
 use std::ops;
 

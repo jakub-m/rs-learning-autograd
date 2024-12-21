@@ -1,8 +1,9 @@
 use crate::{
     compute::{Calculator, ComputGraph, ComputValue, DefaultAdjoin},
     core_syntax::{Ident, Node},
-    float_syntax::FloatOper,
 };
+
+use super::syntax::FloatOper;
 
 pub struct FloatCalculator;
 impl ComputValue for f32 {}

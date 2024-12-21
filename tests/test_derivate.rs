@@ -1,8 +1,9 @@
 use std::{fs::File, io::Write};
 
 use rs_autograd::{
-    compute::ComputGraph, core_syntax::ExprBuilder, float_calculator::FloatCalculator,
-    float_syntax::FloatOper,
+    compute::ComputGraph,
+    core_syntax::ExprBuilder,
+    float::{calculator::FloatCalculator, syntax::FloatOper},
 };
 
 #[test]
