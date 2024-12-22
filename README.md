@@ -18,6 +18,10 @@ A learning exercise to understand automatic gradient, and to exercise Rust.
 - [YT: What is Automatic Differentiation?](https://www.youtube.com/watch?v=wG_nF1awSSY)
 - [Demystifying AutoGrad in Machine Learning](https://medium.com/@weidagang/demystifying-autograd-in-machine-learning-eb7d5c875ff2)
 
+### Derivatives
+
+- [Max pooling and backprop](https://datascience.stackexchange.com/a/11703)
+
 ## Using [marimo][ref_marimo] to view test outputs
 
 There are integration tests that compare a function and that function re-created using derivatives. If the test fails,

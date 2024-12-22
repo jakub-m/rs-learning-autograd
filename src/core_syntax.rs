@@ -57,6 +57,7 @@ impl<'a> From<&'a VariableNameId> for &'a Ident {
 
 pub trait Operator: Clone + Copy + fmt::Debug + fmt::Display {}
 
+///A node in the expression tree.
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Node<F, OP1, OP2>
 where
@@ -75,6 +76,7 @@ where
 }
 
 /// An identifier coupled with a reference to ExprBuilder, so it can be later used in further arithmetic operations.
+/// Expr should be Copy so we can have ergonomic expressions like `y = v1 + v2` without additional `&` or `.clone()`.
 #[derive(Clone, Copy, Debug)]
 pub struct Expr<'a, F, OP1, OP2>
 where
