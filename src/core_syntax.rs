@@ -17,6 +17,8 @@ pub trait DefaultAdjoin {
     fn default_adjoin() -> Self;
 }
 
+/// Identifier of an [Expr][Expr]. Ident is [Copy][Copy] so we can have ergonomic syntax of building
+/// the expression tree, like `y = a + b`.
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Debug, Hash)]
 pub struct Ident(usize);
 

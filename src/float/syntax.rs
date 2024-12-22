@@ -18,8 +18,8 @@ pub enum FloatOperAry2 {
     Add,
     Sub,
     Mul,
-    /// Power to float.
-    Pow,
+    /// Power to other expression.
+    Pow2,
 }
 
 impl ComputValue for f32 {}
@@ -148,6 +148,15 @@ mod tests {
         let x = eb.new_variable("x");
         let y = x + 2.0.as_const(&eb);
         assert_eq!("(x + 2)", format!("{}", y));
+    }
+
+    #[test]
+    fn l2_norm() {
+        let eb = new_eb();
+        let x1 = eb.new_variable("x1");
+        let x2 = eb.new_variable("x2");
+        let c1 = 1.0.as_const(&eb);
+        let c2 = 2.0.as_const(&eb);
     }
 
     fn new_eb() -> ExprBuilder<f32, FloatOperAry1, FloatOperAry2> {
