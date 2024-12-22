@@ -1,6 +1,6 @@
 # Automatic gradient in Rust
 
-A learning exercise to understand automatic gradient, and to exercise Rust.
+A learning exercise to understand automatic gradient, and to exercise Rust. The intention is to have a fully working minimal autograd library that will be able to do automatic differentiation and training.
 
 ## Learnings, observations
 

@@ -56,16 +56,20 @@ where
         }
     }
 
+    /// Set variable once, panic if the variable was already set.
     pub fn set_variable(&mut self, ident: &dyn AsRef<Ident>, value: F) {
+        if let Some(old) = self.reset_variable(ident.as_ref(), value) {
+            panic!("Value for {} already set to {}", ident.as_ref(), old);
+        }
+    }
+
+    /// Set variable.
+    pub fn reset_variable(&mut self, ident: &dyn AsRef<Ident>, value: F) -> Option<F> {
         let ident = ident.as_ref();
         self.assert_ident_is_variable(ident);
-        if let Some(old) = self
-            .primals
+        self.primals
             .borrow_mut()
             .insert(ident.clone(), value.clone())
-        {
-            panic!("Value for {} already set to {}", ident, old);
-        }
     }
 
     pub fn get_node(&self, ident: &Ident) -> Node<F, OP1, OP2> {

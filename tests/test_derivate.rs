@@ -10,12 +10,12 @@ use rs_autograd::{
 use approx_eq::assert_approx_eq;
 
 mod utils;
-use utils::{assert_functions_similar, Opts};
+use utils::{assert_function_and_derivative_similar, Opts};
 
 #[test]
 fn compare_sin_cos() {
     let mut df = |x: f32| x.cos();
-    assert_functions_similar(
+    assert_function_and_derivative_similar(
         |x| x.sin(),
         &mut df,
         &[
@@ -89,7 +89,7 @@ fn sin_cos() {
         cg.backward(&y);
         cg.adjoin(&x)
     };
-    assert_functions_similar(
+    assert_function_and_derivative_similar(
         |x| (x * 30.0).sin() * (x.cos()),
         &mut df,
         &[
@@ -118,7 +118,7 @@ fn test_pow() {
         cg.adjoin(&x)
     };
 
-    assert_functions_similar(
+    assert_function_and_derivative_similar(
         |x| x.powf(2.0),
         &mut df,
         &[
