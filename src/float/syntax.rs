@@ -38,7 +38,7 @@ impl fmt::Display for FloatOperAry1 {
             FloatOperAry1::Cos => "cos".to_owned(),
             FloatOperAry1::Sin => "sin".to_owned(),
             FloatOperAry1::Ln => "ln".to_owned(),
-            FloatOperAry1::PowI(p) => format!("^{}", p),
+            FloatOperAry1::PowI(p) => format!("pow{}", p),
         };
         write!(f, "{}", s)
     }
@@ -165,7 +165,7 @@ mod tests {
         let eb = new_eb();
         let x = eb.new_variable("x");
         let y = x.powi(2);
-        assert_eq!("(x^2)", format!("{}", y));
+        assert_eq!("pow2(x)", format!("{}", y));
     }
 
     #[test]
