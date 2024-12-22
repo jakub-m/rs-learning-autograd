@@ -1,5 +1,5 @@
 use crate::{
-    compute::{Calculator, ComputGraph, ComputValue, DefaultAdjoin},
+    compute::{Calculator, ComputGraph},
     core_syntax::{Ident, Node},
 };
 
@@ -7,12 +7,6 @@ use super::syntax::FloatOperAry1;
 use super::syntax::FloatOperAry2;
 
 pub struct FloatCalculator;
-impl ComputValue for f32 {}
-impl DefaultAdjoin for f32 {
-    fn default_adjoin() -> Self {
-        1.0
-    }
-}
 
 impl Calculator<FloatOperAry1, FloatOperAry2, f32> for FloatCalculator {
     fn forward(&self, cg: &ComputGraph<f32, FloatOperAry1, FloatOperAry2>, ident: &Ident) -> f32 {

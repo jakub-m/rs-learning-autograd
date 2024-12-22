@@ -1,9 +1,8 @@
 //! This module abstracts how to compute values out of nodes.
 
-use core::fmt;
-use std::{cell::RefCell, collections::BTreeMap, ops};
+use std::{cell::RefCell, collections::BTreeMap};
 
-use crate::core_syntax::{Expr, ExprBuilder, Ident, Node, Operator, VariableNameId};
+use crate::core_syntax::{ComputValue, Expr, ExprBuilder, Ident, Node, Operator, VariableNameId};
 
 impl AsRef<Ident> for Ident {
     fn as_ref(&self) -> &Ident {
@@ -20,16 +19,6 @@ where
     fn as_ref(&self) -> &Ident {
         &self.ident
     }
-}
-
-/// A type of the computed value (like, f32). Add is needed to update adjoins.
-pub trait ComputValue:
-    Clone + fmt::Display + fmt::Debug + DefaultAdjoin + ops::Add<Output = Self>
-{
-}
-
-pub trait DefaultAdjoin {
-    fn default_adjoin() -> Self;
 }
 
 /// "Freezes" the expression tree by taking ownership of the expression builder.

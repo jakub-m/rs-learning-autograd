@@ -24,8 +24,12 @@ fn compare_sin_cos() {
     );
 }
 
+/// Fit a polynomial using gradient descent.
 #[test]
 fn test_gradient_descent_polynomial() {
+    // The known polynomial.
+
+    let poly = |x: f32| (x + 3.0) * (x - 2.0).powf(2.0) * (x + 1.0).powf(3.0);
     let eb = new_eb();
     let x = eb.new_variable("x");
     let b1 = eb.new_variable("b1");
@@ -34,7 +38,6 @@ fn test_gradient_descent_polynomial() {
     let y = (x - b1) * (x - b2).pow(2.0.as_const(&eb)) * (x - b3).pow(3.0.as_const(&eb));
 
     let [x, b1, b2, b3, y] = [x, b1, b2, b3, y].map(|expr| expr.ident());
-
     let mut cg = ComputGraph::<f32, _, _>::new(eb, &FloatCalculator);
     let mut df = |x_inp: f32| {
         cg.reset();
@@ -48,7 +51,7 @@ fn test_gradient_descent_polynomial() {
     };
 
     assert_functions_similar(
-        |x| (x + 3.0) * (x - 2.0).powf(2.0) * (x + 1.0).powf(3.0),
+        poly,
         &mut df,
         &[
             Opts::Step(0.01),

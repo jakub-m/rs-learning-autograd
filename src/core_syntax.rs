@@ -1,10 +1,21 @@
 //! Definition of core syntax. The core syntax allows to use expressions like `x + y * z`,
-//! and build a computation graph out of those expressions.
+//! and build a computation graph out of those expressions. The core syntax is generic and does not impose
+//! type of variables underlying computation (like f32 vs f64) or what operations are actually implemented (like addition, or logarithm).
 use std::cell::RefCell;
 use std::collections::{BTreeMap, HashSet};
 use std::fmt::{self, Display};
+use std::ops;
 
-use crate::compute::ComputValue;
+/// A type of the computed value (like, f32). Addition is needed so we can update the adjoins.
+pub trait ComputValue:
+    Clone + fmt::Display + fmt::Debug + DefaultAdjoin + ops::Add<Output = Self>
+{
+}
+
+/// Returns an initial adjoin for a type (a "1").
+pub trait DefaultAdjoin {
+    fn default_adjoin() -> Self;
+}
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Debug, Hash)]
 pub struct Ident(usize);

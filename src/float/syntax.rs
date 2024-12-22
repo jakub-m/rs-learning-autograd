@@ -1,9 +1,9 @@
+//! Implement concrete autograd operations for f32 type.
+
 use std::fmt;
 use std::ops;
 
-use crate::core_syntax::ExprBuilder;
-use crate::core_syntax::Operator;
-use crate::core_syntax::{Expr, Node};
+use crate::core_syntax::{ComputValue, DefaultAdjoin, Expr, ExprBuilder, Node, Operator};
 
 #[derive(Copy, Clone, Debug)]
 pub enum FloatOperAry1 {
@@ -22,7 +22,12 @@ pub enum FloatOperAry2 {
     Pow,
 }
 
-/// TODO Just a marker trait. How to remove necessity of explicit `impl Operator for FloatOper`?
+impl ComputValue for f32 {}
+impl DefaultAdjoin for f32 {
+    fn default_adjoin() -> Self {
+        1.0
+    }
+}
 impl Operator for FloatOperAry1 {}
 
 impl fmt::Display for FloatOperAry1 {
