@@ -46,9 +46,9 @@ impl Operator for FloatOperAry2 {}
 impl fmt::Display for FloatOperAry2 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let s = match self {
-            FloatOperAry2::Add => "+",
-            FloatOperAry2::Mul => "*",
-            FloatOperAry2::Sub => "-",
+            FloatOperAry2::Add => " + ",
+            FloatOperAry2::Mul => " * ",
+            FloatOperAry2::Sub => " - ",
             FloatOperAry2::Pow => "^",
         };
         write!(f, "{}", s)

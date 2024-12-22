@@ -37,6 +37,11 @@ fn test_gradient_descent_polynomial() {
     let b3 = eb.new_variable("b3");
     let y = (x - b1) * (x - b2).pow(2.0.as_const(&eb)) * (x - b3).pow(3.0.as_const(&eb));
 
+    assert_eq!(
+        "(((x - b1) * ((x - b2)^2)) * ((x - b3)^3))",
+        format!("{}", y)
+    );
+
     let [x, b1, b2, b3, y] = [x, b1, b2, b3, y].map(|expr| expr.ident());
     let mut cg = ComputGraph::<f32, _, _>::new(eb, &FloatCalculator);
     let mut df = |x_inp: f32| {

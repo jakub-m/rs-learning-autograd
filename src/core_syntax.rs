@@ -131,7 +131,7 @@ where
                 let node2 = id_to_node.get(ident2).ok_or(fmt::Error)?;
                 write!(f, "(")?;
                 self.fmt_node(f, &node1)?;
-                write!(f, " {} ", op)?;
+                write!(f, "{}", op)?;
                 self.fmt_node(f, &node2)?;
                 write!(f, ")")?;
             }
