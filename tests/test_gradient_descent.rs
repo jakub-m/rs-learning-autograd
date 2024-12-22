@@ -73,6 +73,7 @@ fn test_gradient_descent_polynomial() {
         }
     }
 
+    println!("final params {:?}", param_values);
     let mut df = |x_inp: f32| {
         cg.reset_variable(&x, x_inp);
         cg.forward(&y)

@@ -122,6 +122,7 @@ fn write_series_to_file(
     y1_values: &Vec<f32>,
     y2_values: &Vec<f32>,
 ) {
+    println!("Writing to file {}", file_name);
     let mut f = File::create(file_name).unwrap();
     f.write(format!("i\tx\ty1\ty2\n").as_bytes()).unwrap();
     for i in 0..x_values.len() {
