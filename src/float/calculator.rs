@@ -20,39 +20,43 @@ impl Calculator<FloatOperAry1, FloatOperAry2, f32> for FloatCalculator {
                     name_id
                 )
             }
-            Node::Ary1(op, ident1) => match op {
+            Node::Ary1(op, a) => match op {
                 FloatOperAry1::Cos => {
-                    let a = cg.forward(&ident1);
+                    let a = cg.forward(&a);
                     a.cos()
                 }
                 FloatOperAry1::Sin => {
-                    let a = cg.forward(&ident1);
+                    let a = cg.forward(&a);
                     a.sin()
                 }
                 FloatOperAry1::Ln => {
-                    let a = cg.forward(&ident1);
+                    let a = cg.forward(&a);
                     a.ln()
                 }
+                FloatOperAry1::PowI(b) => {
+                    let a = cg.forward(&a);
+                    a.powi(b)
+                }
             },
-            Node::Ary2(op, ident1, ident2) => match op {
+            Node::Ary2(op, a, b) => match op {
                 FloatOperAry2::Add => {
-                    let a = cg.forward(&ident1);
-                    let b = cg.forward(&ident2);
+                    let a = cg.forward(&a);
+                    let b = cg.forward(&b);
                     a + b
                 }
                 FloatOperAry2::Sub => {
-                    let a = cg.forward(&ident1);
-                    let b = cg.forward(&ident2);
+                    let a = cg.forward(&a);
+                    let b = cg.forward(&b);
                     a - b
                 }
                 FloatOperAry2::Mul => {
-                    let a = cg.forward(&ident1);
-                    let b = cg.forward(&ident2);
+                    let a = cg.forward(&a);
+                    let b = cg.forward(&b);
                     a * b
                 }
                 FloatOperAry2::Pow => {
-                    let a = cg.forward(&ident1);
-                    let b = cg.forward(&ident2);
+                    let a = cg.forward(&a);
+                    let b = cg.forward(&b);
                     a.powf(b)
                 }
             }
@@ -86,6 +90,10 @@ impl Calculator<FloatOperAry1, FloatOperAry2, f32> for FloatCalculator {
                     let v1_p = cg.primal(&v1);
                     let v1_ad = 1.0 / v1_p;
                     self.backward(cg, &v1, adjoin * v1_ad);
+                }
+                FloatOperAry1::PowI(b) => {
+                    let a = cg.primal(&v1);
+                    self.backward(cg, &v1, adjoin * ((b as f32) * a.powi(b - 1)));
                 }
             },
             Node::Ary2(op, v1, v2) => match op {

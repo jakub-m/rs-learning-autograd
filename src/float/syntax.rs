@@ -10,6 +10,8 @@ pub enum FloatOperAry1 {
     Cos,
     Sin,
     Ln,
+    /// Power to constant integer value.
+    PowI(i32),
 }
 
 // Bespoke set of Ary2 operations
@@ -19,7 +21,7 @@ pub enum FloatOperAry2 {
     Sub,
     Mul,
     /// Power to other expression.
-    Pow2,
+    Pow,
 }
 
 impl ComputValue for f32 {}
@@ -32,10 +34,11 @@ impl Operator for FloatOperAry1 {}
 
 impl fmt::Display for FloatOperAry1 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let s = match self {
-            FloatOperAry1::Cos => "cos",
-            FloatOperAry1::Sin => "sin",
-            FloatOperAry1::Ln => "ln",
+        let s: String = match self {
+            FloatOperAry1::Cos => "cos".to_owned(),
+            FloatOperAry1::Sin => "sin".to_owned(),
+            FloatOperAry1::Ln => "ln".to_owned(),
+            FloatOperAry1::PowI(p) => format!("^{}", p),
         };
         write!(f, "{}", s)
     }
@@ -100,8 +103,15 @@ impl<'a> ExprFloat<'a> {
         self.register_and_continue_expr(node)
     }
 
+    /// a^p where p is another expression.
     pub fn pow(&self, p: Self) -> ExprFloat<'a> {
         let node = Node::Ary2(FloatOperAry2::Pow, self.ident, p.ident);
+        self.register_and_continue_expr(node)
+    }
+
+    /// a^b where b is an integer.
+    pub fn powi(&self, b: i32) -> ExprFloat<'a> {
+        let node = Node::Ary1(FloatOperAry1::PowI(b), self.ident);
         self.register_and_continue_expr(node)
     }
 }
@@ -148,6 +158,14 @@ mod tests {
         let x = eb.new_variable("x");
         let y = x + 2.0.as_const(&eb);
         assert_eq!("(x + 2)", format!("{}", y));
+    }
+
+    #[test]
+    fn powi() {
+        let eb = new_eb();
+        let x = eb.new_variable("x");
+        let y = x.powi(2);
+        assert_eq!("(x^2)", format!("{}", y));
     }
 
     #[test]

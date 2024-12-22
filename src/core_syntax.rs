@@ -6,7 +6,7 @@ use std::collections::{BTreeMap, HashSet};
 use std::fmt::{self, Display};
 use std::ops;
 
-/// A type of the computed value (like, f32). Addition is needed so we can update the adjoins.
+/// A type of the computed value (like, f32). [ops::Add] is needed so we can update the adjoins.
 pub trait ComputValue:
     Clone + fmt::Display + fmt::Debug + DefaultAdjoin + ops::Add<Output = Self>
 {
@@ -17,7 +17,7 @@ pub trait DefaultAdjoin {
     fn default_adjoin() -> Self;
 }
 
-/// Identifier of an [Expr][Expr]. Ident is [Copy][Copy] so we can have ergonomic syntax of building
+/// Identifier of an [Expr][Expr]. Ident is [Copy] so we can have ergonomic syntax of building
 /// the expression tree, like `y = a + b`.
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Debug, Hash)]
 pub struct Ident(usize);
@@ -29,7 +29,7 @@ impl Display for Ident {
 }
 
 /// Some nodes are variables, and those variables have names stored aside. VariableNameId
-/// points to that unique name. The type is only to distinguish Ident from variable name.
+/// points to that unique name. The type is only to distinguish [Ident] from the variable name.
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Debug, Hash)]
 pub struct VariableNameId(Ident);
 
