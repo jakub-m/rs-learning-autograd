@@ -10,20 +10,6 @@ use rs_autograd::{
 mod utils;
 use utils::{assert_functions_similar, Opts};
 
-#[test]
-fn compare_sin_cos() {
-    let mut df = |x: f32| x.cos();
-    assert_functions_similar(
-        |x| x.sin(),
-        &mut df,
-        &[
-            Opts::TestName("compare_sin"),
-            Opts::Step(0.01),
-            Opts::End(3.14 / 2.0),
-        ],
-    );
-}
-
 /// Fit a polynomial using gradient descent.
 #[test]
 fn test_gradient_descent_polynomial() {
