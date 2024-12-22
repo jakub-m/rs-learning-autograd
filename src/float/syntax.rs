@@ -147,8 +147,7 @@ mod tests {
         let eb = new_eb();
         let x = eb.new_variable("x");
         let y = x + 2.0.as_const(&eb);
-        // 1.0.as_const(eb)
-        // eb.const(1.0)
+        assert_eq!("(x + 2)", format!("{}", y));
     }
 
     fn new_eb() -> ExprBuilder<f32, FloatOperAry1, FloatOperAry2> {
