@@ -6,7 +6,7 @@ use rs_autograd::{
     core_syntax::ExprBuilder,
     float::{
         calculator::FloatCalculator,
-        syntax::{AsConst, FloatOperAry1, FloatOperAry2},
+        syntax::{FloatOperAry1, FloatOperAry2},
     },
 };
 use table::Table;
@@ -89,13 +89,12 @@ fn test_gradient_descent_simple() {
 fn test_gradient_descent_polynomial() {
     // The known polynomial.
     let target_poly = |x: f32| (x - 2.0) * (x + 1.0).powf(2.0) * (x - 1.0).powf(3.0);
-    let input_range = FloatRange::new(-0.1, 2.0, 0.1);
+    let input_range = FloatRange::new(-1.1, 2.2, 0.1);
 
     let mut table = Table::<f32>::new();
-    table.extend_col("x", &input_range);
-    // table
-    //     .to_csv("test_gradient_descent_polynomial.csv")
-    //     .unwrap();
+    table.extend_col("x", input_range.into_iter());
+    table.extend_col("target", input_range.into_iter().map(target_poly));
+    table.assert_columns_have_same_lengths();
 
     // Define the model.
     let eb = new_eb();
@@ -115,64 +114,66 @@ fn test_gradient_descent_polynomial() {
     );
 
     let [x, t, y, loss] = [x, t, y, loss].map(|expr| expr.ident());
-    let b_params = [b1, b2, b3].map(|expr| expr.ident());
+    let b_param_ids = [b1, b2, b3].map(|expr| expr.ident());
     let mut cg = ComputGraph::<f32, _, _>::new(eb, &FloatCalculator);
 
     // Set initial parameter values (some "random" values).
-    let mut param_values = [0.01_f32, 0.02, 0.03];
-    // let n_epochs = 100;
-    // let learn_rate = 0.01;
-    // for i in 0..n_epochs {
-    //     print!("epoch {}", i);
-    //     print!("\tparams {:?}", param_values);
-    //     // Reset state of primals and adjoins.
-    //     cg.reset();
-    //     // Set equation ("model") parameters.
-    //     for i in 0..param_values.len() {
-    //         cg.reset_variable(&b_params[i], param_values[i]);
-    //     }
-    //     // Set input value (x) and target y for that input.
-    //     let mut n_steps = 0_usize;
-    //     let mut tot_loss = 0_f32;
-    //     for x_inp in input_range.into_iter() {
-    //         n_steps += 1;
-    //         cg.reset_variable(&x, x_inp);
-    //         cg.reset_variable(&t, poly(x_inp));
-    //         // Run forward and backward pass.
-    //         tot_loss += cg.forward(&loss);
-    //         cg.backward(&loss);
-    //     }
+    let mut b_param_values = [0.01_f32, 0.02, 0.03];
+    let n_epochs = 100;
+    let learn_rate = 0.01;
+    for i in 0..n_epochs {
+        print!("i {}", i);
+        print!("\tb {:?}", b_param_values);
+        cg.reset();
+        for i in 0..b_param_values.len() {
+            cg.reset_variable(&b_param_ids[i], b_param_values[i]);
+        }
 
-    //     // Take adjoins per parameter and apply the gradient to input parameters.
-    //     let b_adjoins = b_params.map(|b| cg.adjoin(&b));
-    //     print!("\tadjoins{:?}", b_adjoins);
-    //     print!("\ttot_loss {}", tot_loss / (n_steps as f32));
-    //     for i in 0..param_values.len() {
-    //         let d = b_adjoins[i] * learn_rate / (n_steps as f32);
-    //         param_values[i] = param_values[i] - d;
-    //     }
-    //     println!("");
-    // }
+        let mut n_steps = 0_usize;
+        let mut tot_loss = 0_f32;
+        for x_inp in input_range.into_iter() {
+            n_steps += 1;
+            cg.reset_variable(&x, x_inp);
+            cg.reset_variable(&t, target_poly(x_inp));
+            tot_loss += cg.forward(&loss);
+            cg.backward(&loss);
+        }
 
-    // println!("final params {:?}", param_values);
-    // let mut df = |x_inp: f32| {
-    //     cg.reset();
-    //     for i in 0..param_values.len() {
-    //         cg.set_variable(&b_params[i], param_values[i]);
-    //     }
-    //     cg.set_variable(&x, x_inp);
-    //     cg.forward(&y)
-    // };
-    // //assert_functions_similar(
-    // //    poly,
-    // //    &mut df,
-    // //    &[
-    // //        Opts::Start(start),
-    // //        Opts::End(end),
-    // //        Opts::Step(step),
-    // //        Opts::TestName("test_gradient_descent_polynomial"),
-    // //    ],
-    // //);
+        let b_adjoins = b_param_ids.map(|b| cg.adjoin(&b) / (n_steps as f32));
+        tot_loss = tot_loss / (n_steps as f32);
+        print!("\tadjoins{:?}", b_adjoins);
+        print!("\ttot_loss {}", tot_loss);
+        println!("");
+        for i in 0..b_param_values.len() {
+            b_param_values[i] = b_param_values[i] - b_adjoins[i] * learn_rate;
+        }
+    }
+
+    let mut df = |x_inp: f32| {
+        cg.reset();
+        for i in 0..b_param_values.len() {
+            cg.set_variable(&b_param_ids[i], b_param_values[i]);
+        }
+        cg.set_variable(&x, x_inp);
+        cg.forward(&y)
+    };
+    table.extend_col("y_final", input_range.into_iter().map(|x| df(x)));
+    //assert_functions_similar(
+    //    poly,
+    //    &mut df,
+    //    &[
+    //        Opts::Start(start),
+    //        Opts::End(end),
+    //        Opts::Step(step),
+    //        Opts::TestName("test_gradient_descent_polynomial"),
+    //    ],
+    //);
+    println!("param_values: {:?}", b_param_values);
+    table
+        .to_csv("test_gradient_descent_polynomial.csv")
+        .unwrap();
+
+    assert!(false);
 }
 
 fn new_eb() -> ExprBuilder<f32, FloatOperAry1, FloatOperAry2> {

@@ -125,7 +125,7 @@ fn write_series_to_file(
     }
 }
 
-trait FloatType:
+pub trait FloatType:
     fmt::Display
     + Copy
     + cmp::PartialOrd

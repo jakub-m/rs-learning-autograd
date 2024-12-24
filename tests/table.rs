@@ -25,9 +25,10 @@ where
         }
     }
 
+    /// Accepts [Iterator] so it is possible to use `.map` directly as an argument of [extend_col].
     pub fn extend_col<T>(&mut self, col: &str, values: T)
     where
-        T: IntoIterator<Item = F>,
+        T: Iterator<Item = F>,
     {
         self.cols
             .entry(col.to_owned())
@@ -37,6 +38,15 @@ where
         if col_len > self.max_col_len {
             self.max_col_len = col_len
         }
+    }
+
+    /// Extend the column with values until the size of the column is equal to the largest column.
+    pub fn pad_col(&mut self, col: &str, value: F) {
+        let values = self.cols.entry(col.to_owned()).or_insert(Vec::new());
+        for _ in 0..(self.max_col_len - values.len()) {
+            values.push(value);
+        }
+        assert_eq!(values.len(), self.max_col_len);
     }
 
     pub fn to_csv(&self, path: &str) -> io::Result<()> {
@@ -52,7 +62,7 @@ where
         //let n = self.cols[&col_names[0]].len();
 
         let mut output = File::create(path)?;
-        let row = &col_names.join("\t");
+        let row = &col_names.join(sep);
         writeln!(output, "{}", row)?;
         for i in 0..self.max_col_len {
             let row: Vec<String> = col_names
@@ -60,10 +70,16 @@ where
                 .map(|c| self.cols.get(c).unwrap().get(i).unwrap())
                 .map(|v| format!("{}", v))
                 .collect();
-            let row = row.join("\t");
+            let row = row.join(sep);
             writeln!(output, "{}", row)?;
         }
         Ok(())
+    }
+
+    pub fn assert_columns_have_same_lengths(&self) {
+        if let Err(e) = self.validate_column_sizes() {
+            panic!("{}", e)
+        }
     }
 
     fn validate_column_sizes(&self) -> io::Result<()> {

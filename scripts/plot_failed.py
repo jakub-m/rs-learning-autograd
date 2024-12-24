@@ -14,14 +14,14 @@ def __():
     return Path, alt, mo, os, pd
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     file_browser = mo.ui.file_browser(multiple=False, restrict_navigation=True, filetypes=[".csv"])
     file_browser
     return file_browser,
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(Path, file_browser, mo):
     if file_browser.value:
         filepath = file_browser.value[0].path
@@ -38,19 +38,30 @@ def __(mo):
     return button_reload,
 
 
-@app.cell
-def __(alt, button_reload, filepath, mo, os, pd):
-    button_reload
-
+@app.cell(hide_code=True)
+def __(filepath, mo, pd):
     df = pd.read_csv(filepath, sep="\t")
 
-    chart = alt.Chart(df, title=f"{filepath.absolute().relative_to(os.getcwd())}")
-    y1 = chart.encode(alt.X("x:Q"), alt.Y("y1:Q"))
-    y2 = chart.encode(alt.X("x:Q"), alt.Y("y2:Q"))
+    column_multiselect = mo.ui.multiselect(sorted(c for c in df.columns if c not in ["x"]))
+    column_multiselect
+    return column_multiselect, df
+
+
+@app.cell(hide_code=True)
+def __(alt, button_reload, column_multiselect, df, filepath, mo, os):
+    button_reload
+
+    df_long = df.melt(id_vars=["x"], value_vars=column_multiselect.value)
+    chart = alt.Chart(df_long, title=f"{filepath.absolute().relative_to(os.getcwd())}")
     mo.ui.altair_chart(
-        y1.mark_line(color="black") + y2.mark_line(color="red", strokeDash=[10,5])
+        chart.mark_line().encode(
+            alt.X("x:Q"),
+            alt.Y("value:Q"),
+            alt.Color("variable:N"),
+        )
     )
-    return chart, df, y1, y2
+
+    return chart, df_long
 
 
 @app.cell

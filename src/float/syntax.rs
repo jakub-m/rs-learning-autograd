@@ -168,13 +168,14 @@ mod tests {
         assert_eq!("pow2(x)", format!("{}", y));
     }
 
+    #[ignore]
     #[test]
     fn l2_norm() {
         let eb = new_eb();
-        let x1 = eb.new_variable("x1");
-        let x2 = eb.new_variable("x2");
-        let c1 = 1.0.as_const(&eb);
-        let c2 = 2.0.as_const(&eb);
+        let _x1 = eb.new_variable("x1");
+        let _x2 = eb.new_variable("x2");
+        let _c1 = 1.0.as_const(&eb);
+        let _c2 = 2.0.as_const(&eb);
     }
 
     fn new_eb() -> ExprBuilder<f32, FloatOperAry1, FloatOperAry2> {
