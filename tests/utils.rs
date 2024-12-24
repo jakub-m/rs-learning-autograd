@@ -213,14 +213,3 @@ where
         }
     }
 }
-
-pub fn iter_float<F>(start: F, end: F, step: F) -> FloatIter<F>
-where
-    F: FloatType,
-{
-    FloatIter {
-        curr: start,
-        end,
-        step,
-    }
-}
