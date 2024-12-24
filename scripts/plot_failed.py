@@ -44,25 +44,28 @@ def __(button_reload, filepath, mo, pd):
 
     df = pd.read_csv(filepath, sep="\t")
 
-    column_multiselect = mo.ui.multiselect(sorted(c for c in df.columns if c not in ["x"]))
+    column_multiselect = mo.ui.multiselect(sorted(c for c in df.columns if c not in ["x", "i"]))
     column_multiselect
     return column_multiselect, df
 
 
-@app.cell(hide_code=True)
+@app.cell
 def __(alt, button_reload, column_multiselect, df, filepath, mo, os):
     button_reload
 
-    df_long = df.melt(id_vars=["x"], value_vars=column_multiselect.value)
+    # For X axis choose either "x" or "i"
+    x_col_name = next(iter(set(df.columns) & set(["x", "i"])))
+
+    df_long = df.melt(id_vars=[x_col_name], value_vars=column_multiselect.value)
     chart = alt.Chart(df_long, title=f"{filepath.absolute().relative_to(os.getcwd())}")
     mo.ui.altair_chart(
         chart.mark_line().encode(
-            alt.X("x:Q"),
+            alt.X(f"{x_col_name}:Q"),
             alt.Y("value:Q"),
             alt.Color("variable:N"),
         )
     )
-    return chart, df_long
+    return chart, df_long, x_col_name
 
 
 @app.cell

@@ -40,6 +40,17 @@ where
         }
     }
 
+    pub fn append_col(&mut self, col: &str, values: F) {
+        self.cols
+            .entry(col.to_owned())
+            .or_insert(Vec::new())
+            .push(values);
+        let col_len = self.cols.get(col).unwrap().len();
+        if col_len > self.max_col_len {
+            self.max_col_len = col_len
+        }
+    }
+
     /// Extend the column with values until the size of the column is equal to the largest column.
     pub fn pad_col(&mut self, col: &str, value: F) {
         let values = self.cols.entry(col.to_owned()).or_insert(Vec::new());
