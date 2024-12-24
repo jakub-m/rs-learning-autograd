@@ -10,7 +10,7 @@ use rs_autograd::{
 use approx_eq::assert_approx_eq;
 
 mod utils;
-use utils::{assert_function_and_derivative_similar, Opts};
+use utils::{assert_function_and_derivative_similar, FloatRange, Opts};
 
 #[test]
 fn compare_sin_cos() {
@@ -20,8 +20,7 @@ fn compare_sin_cos() {
         &mut df,
         &[
             Opts::TestName("compare_sin"),
-            Opts::Step(0.01),
-            Opts::End(3.14 / 2.0),
+            Opts::InputRange(FloatRange::new(0.0_f32, 3.14 / 2.0, 0.01)),
         ],
     );
 }
@@ -93,8 +92,7 @@ fn sin_cos() {
         |x| (x * 30.0).sin() * (x.cos()),
         &mut df,
         &[
-            Opts::Step(0.001),
-            Opts::End(3.14 / 1.0),
+            Opts::InputRange(FloatRange::new(0.0_f32, 3.14, 0.001)),
             Opts::TestName("sin_cos"),
             Opts::MaxRms(0.02),
         ],
@@ -122,8 +120,7 @@ fn test_pow() {
         |x| x.powf(2.0),
         &mut df,
         &[
-            Opts::Step(0.01),
-            Opts::End(5.0),
+            Opts::InputRange(FloatRange::new(0.0_f32, 5.0, 0.01)),
             Opts::TestName("pow"),
             Opts::MaxRms(0.03),
         ],

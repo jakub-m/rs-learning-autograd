@@ -1,9 +1,7 @@
-use std::{fs::File, io::Write, ops};
+use std::{cmp, fmt, fs::File, io::Write, ops};
 
 pub enum Opts<'a> {
-    Step(f32),
-    Start(f32),
-    End(f32),
+    InputRange(FloatRange<f32>),
     TestName(&'a str),
     MaxRms(f32),
 }
@@ -14,30 +12,23 @@ where
     F1: Fn(f32) -> f32,
     F2: FnMut(f32) -> f32,
 {
-    let mut step = 0.01;
-    let mut end = 1.0;
     let mut test_name = "unknown";
     let mut max_rms = 0.01;
-    let mut start = 0.0;
+    let mut input_range = FloatRange::<f32>::new(0.0, 1.0, 0.01);
     for opt in opts {
         match opt {
-            Opts::Step(v) => step = *v,
-            Opts::Start(v) => start = *v,
-            Opts::End(v) => end = *v,
             Opts::TestName(v) => test_name = *v,
             Opts::MaxRms(v) => max_rms = *v,
+            Opts::InputRange(v) => input_range = *v,
         };
     }
 
     let mut y1_values: Vec<f32> = vec![];
     let mut y2_values: Vec<f32> = vec![];
     let mut x_values: Vec<f32> = vec![];
-    let mut y2 = f(start);
-    assert!(step > 0.0);
-    assert!(start <= end);
-    let n = ((end - start) / step) as usize;
-    assert!(n >= 10);
-    for x in (0..n).map(|i| (i as f32) * step + start) {
+    let mut y2 = f(input_range.start());
+
+    for x in input_range.into_iter() {
         x_values.push(x);
         let y1 = f(x);
         y1_values.push(y1);
@@ -45,8 +36,11 @@ where
         // Push first calculate later so it behaves well at the first point.
         y2_values.push(y2);
         let dy2 = df(x);
-        y2 = y2 + dy2 * step;
+        y2 = y2 + dy2 * input_range.step();
     }
+    assert!(x_values.len() == y1_values.len() && x_values.len() == y2_values.len());
+    let n = x_values.len();
+    assert!(n > 0);
 
     let mut rms = 0.0;
     for i in 0..n {
@@ -71,18 +65,14 @@ where
     F1: Fn(f32) -> f32,
     F2: FnMut(f32) -> f32,
 {
-    let mut step = 0.01;
-    let mut end = 1.0;
     let mut test_name = "unknown";
     let mut max_rms = 0.01;
-    let mut start = 0.0;
+    let mut float_range = FloatRange::new(-1.0_f32, 1.0, 0.01);
     for opt in opts {
         match opt {
-            Opts::Step(v) => step = *v,
-            Opts::Start(v) => start = *v,
-            Opts::End(v) => end = *v,
             Opts::TestName(v) => test_name = *v,
             Opts::MaxRms(v) => max_rms = *v,
+            Opts::InputRange(v) => float_range = *v,
         };
     }
 
@@ -90,9 +80,7 @@ where
     let mut y2_values: Vec<f32> = vec![];
     let mut x_values: Vec<f32> = vec![];
 
-    assert!(step > 0.0);
-    assert!(start <= end);
-    for x in iter_float(start, end, step) {
+    for x in float_range.into_iter() {
         x_values.push(x);
         y1_values.push(f1(x));
         y2_values.push(f2(x));
@@ -137,7 +125,73 @@ fn write_series_to_file(
     }
 }
 
-pub struct FloatIter<F> {
+trait FloatType:
+    fmt::Display
+    + Copy
+    + cmp::PartialOrd
+    + ops::Add<Output = Self>
+    + ops::Sub<Output = Self>
+    + ops::Div<Output = Self>
+    + Default
+{
+}
+
+impl FloatType for f32 {}
+
+#[derive(Clone, Copy)]
+pub struct FloatRange<F>
+where
+    F: FloatType,
+{
+    start: F,
+    end: F,
+    step: F,
+}
+
+impl<F> FloatRange<F>
+where
+    F: FloatType,
+{
+    pub fn new(start: F, end: F, step: F) -> FloatRange<F> {
+        let n_steps = (end - start) / step;
+        let zero = F::default();
+        if n_steps < zero {
+            panic!(
+                "Negative number of steps for start={} end={} step={}",
+                start, end, step
+            )
+        }
+        FloatRange { start, end, step }
+    }
+
+    pub fn start(&self) -> F {
+        self.start
+    }
+    pub fn step(&self) -> F {
+        self.step
+    }
+}
+
+impl<F> IntoIterator for &FloatRange<F>
+where
+    F: FloatType,
+{
+    type Item = F;
+    type IntoIter = FloatIter<F>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        FloatIter {
+            curr: self.start,
+            end: self.end,
+            step: self.step,
+        }
+    }
+}
+
+pub struct FloatIter<F>
+where
+    F: FloatType,
+{
     curr: F,
     end: F,
     step: F,
@@ -145,7 +199,7 @@ pub struct FloatIter<F> {
 
 impl<F> Iterator for FloatIter<F>
 where
-    F: PartialOrd + ops::Add<Output = F> + Copy,
+    F: FloatType,
 {
     type Item = F;
 
@@ -162,7 +216,7 @@ where
 
 pub fn iter_float<F>(start: F, end: F, step: F) -> FloatIter<F>
 where
-    F: PartialOrd + ops::Add<Output = F> + Copy,
+    F: FloatType,
 {
     FloatIter {
         curr: start,

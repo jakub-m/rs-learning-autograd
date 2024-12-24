@@ -14,17 +14,8 @@ def __():
     return Path, alt, mo, os, pd
 
 
-@app.cell(hide_code=True)
-def __(mo):
-    button_reload = mo.ui.button(label="Reload")
-    button_reload
-    return button_reload,
-
-
 @app.cell
-def __(button_reload, mo):
-    button_reload
-
+def __(mo):
     file_browser = mo.ui.file_browser(multiple=False, restrict_navigation=True, filetypes=[".csv"])
     file_browser
     return file_browser,
@@ -40,17 +31,31 @@ def __(Path, file_browser, mo):
     return filepath,
 
 
+@app.cell(hide_code=True)
+def __(mo):
+    button_reload = mo.ui.button(label="Reload")
+    button_reload
+    return button_reload,
+
+
 @app.cell
-def __(alt, filepath, mo, os, pd):
+def __(alt, button_reload, filepath, mo, os, pd):
+    button_reload
+
     df = pd.read_csv(filepath, sep="\t")
 
-    chart = alt.Chart(df, title=f"{filepath.relative_to(os.getcwd())}")
+    chart = alt.Chart(df, title=f"{filepath.absolute().relative_to(os.getcwd())}")
     y1 = chart.encode(alt.X("x:Q"), alt.Y("y1:Q"))
     y2 = chart.encode(alt.X("x:Q"), alt.Y("y2:Q"))
     mo.ui.altair_chart(
         y1.mark_line(color="black") + y2.mark_line(color="red", strokeDash=[10,5])
     )
     return chart, df, y1, y2
+
+
+@app.cell
+def __():
+    return
 
 
 if __name__ == "__main__":
