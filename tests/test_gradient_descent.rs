@@ -118,7 +118,9 @@ fn test_gradient_descent_polynomial() {
     let mut cg = ComputGraph::<f32, _, _>::new(eb, &FloatCalculator);
 
     // Set initial parameter values (some "random" values).
-    let mut b_param_values = [0.01_f32, 0.02, 0.03];
+    //let mut b_param_values = [2.0, -1.0, 1.0]; // target
+    let mut b_param_values = [0.0, -1.0, 1.0];
+    //let mut b_param_values = [0.01_f32, 0.02, 0.03];
     let n_epochs = 100;
     let learn_rate = 0.01;
     for i in 0..n_epochs {

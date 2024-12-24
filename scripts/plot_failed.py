@@ -38,8 +38,10 @@ def __(mo):
     return button_reload,
 
 
-@app.cell(hide_code=True)
-def __(filepath, mo, pd):
+@app.cell
+def __(button_reload, filepath, mo, pd):
+    button_reload
+
     df = pd.read_csv(filepath, sep="\t")
 
     column_multiselect = mo.ui.multiselect(sorted(c for c in df.columns if c not in ["x"]))
@@ -60,7 +62,6 @@ def __(alt, button_reload, column_multiselect, df, filepath, mo, os):
             alt.Color("variable:N"),
         )
     )
-
     return chart, df_long
 
 
