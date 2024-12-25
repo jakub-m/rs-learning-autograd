@@ -159,7 +159,7 @@ fn test_fit_simple_relu() {
     );
 }
 
-#[ignore]
+// #[ignore]
 #[test]
 fn test_relu_to_sin() {
     let target_poly = |x: f32| x.sin();
@@ -195,8 +195,8 @@ fn test_relu_to_sin() {
         .map(|_| rng.gen_range(-3.0..3.0))
         .collect();
     // dbg!(&param_values);
-    let n_epochs = 1000;
-    let learn_rate = 0.001;
+    let n_epochs = 10000;
+    let learn_rate = 0.0001;
     for i in 0..n_epochs {
         print!("i {}", i);
         //print!("\tparams {:?}", param_values);
