@@ -10,7 +10,7 @@ use rs_autograd::{
     },
 };
 use table::Table;
-use utils::{assert_functions_similar, FloatRange, Opts};
+use utils::{assert_function_and_derivative_similar, assert_functions_similar, FloatRange, Opts};
 
 #[test]
 fn test_gradient_descent_simple() {
@@ -143,12 +143,12 @@ fn test_fit_simple_relu() {
         }
     }
 
-    let mut table_xy = Table::<f32>::new();
-    table_xy.extend_col("x", input_range.into_iter());
-    table_xy.extend_col("y_target", input_range.into_iter().map(target_poly));
-    table_xy.to_csv("test_fit_simple_relu_xy.csv").unwrap();
-
-    panic!();
+    let mut df = |x_inp: f32| {
+        cg.reset_primals_keep_variables();
+        cg.set_variable(&x, x_inp);
+        cg.forward(&y)
+    };
+    assert_function_and_derivative_similar(target_poly, &mut df, &[Opts::InputRange(input_range)]);
 }
 
 /// Fit a polynomial using gradient descent.

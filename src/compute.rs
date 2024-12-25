@@ -61,8 +61,14 @@ where
 
     /// Set variable once, panic if the variable was already set.
     pub fn set_variable(&mut self, ident: &dyn AsRef<Ident>, value: F) {
-        if let Some(old) = self.reset_variable(ident.as_ref(), value) {
-            panic!("Value for {} already set to {}", ident.as_ref(), old);
+        let ident = ident.as_ref();
+        if let Some(old) = self.reset_variable(ident, value) {
+            panic!(
+                "Value for {:?} {} already set to {}",
+                self.get_name(ident),
+                ident.as_ref(),
+                old
+            );
         }
     }
 
@@ -82,6 +88,12 @@ where
             .get(ident)
             .expect(format!("No node for ident {}", ident).as_str());
         node.clone()
+    }
+
+    pub fn get_name(&self, ident: &Ident) -> Option<String> {
+        let id_to_name = self.eb.id_to_name.borrow();
+        let variable_id = VariableNameId::from(*ident);
+        id_to_name.get(&variable_id).map(|s| s.to_owned())
     }
 
     /// Remove primals, keep the variables values so the user only needs to
