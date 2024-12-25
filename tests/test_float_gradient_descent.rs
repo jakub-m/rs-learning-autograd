@@ -11,7 +11,6 @@ use rs_autograd::{
         syntax::{AsConst, FloatOperAry1, FloatOperAry2},
     },
 };
-use table::Table;
 use utils::{assert_functions_similar, FloatRange, Opts};
 
 #[test]
@@ -43,15 +42,16 @@ fn test_gradient_descent_simple() {
         print!("epoch {}", i);
         print!("\tparams {:?}", param_value_a);
         // Reset state of primals and adjoins.
-        cg.reset_primals_keep_variables();
+        cg.reset();
         // Set equation ("model") parameters.
-        cg.reset_variable(&a, param_value_a);
+        cg.set_variable(&a, param_value_a);
 
         // Set input value (x) and target y for that input.
         let mut tot_loss = 0_f32;
         let mut n = 0.0_f32;
         for x_inp in input_range.into_iter() {
             n += 1.0;
+            cg.reset_primals_keep_variables();
             cg.reset_variable(&x, x_inp);
             // The target is the ideal t = ax;
             cg.reset_variable(&t, poly(x_inp));
