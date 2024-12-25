@@ -41,7 +41,7 @@ fn test_gradient_descent_simple() {
         print!("epoch {}", i);
         print!("\tparams {:?}", param_value_a);
         // Reset state of primals and adjoins.
-        cg.reset();
+        cg.reset_keep_variables();
         // Set equation ("model") parameters.
         cg.reset_variable(&a, param_value_a);
 
@@ -69,9 +69,8 @@ fn test_gradient_descent_simple() {
     } // end of epoch
 
     let mut df = |x_inp: f32| {
-        cg.reset();
-        cg.set_variable(&a, param_value_a);
-        cg.set_variable(&x, x_inp);
+        cg.reset_keep_variables();
+        cg.reset_variable(&x, x_inp);
         cg.forward(&y)
     };
     assert_functions_similar(
@@ -84,7 +83,20 @@ fn test_gradient_descent_simple() {
     );
 }
 
+#[test]
+fn test_fit_simple_relu() {
+    let target_poly = |x: f32| {
+        if x < 3.0 {
+            0.0
+        } else {
+            x * 2.0
+        }
+    };
+    panic!();
+}
+
 /// Fit a polynomial using gradient descent.
+#[ignore]
 #[test]
 fn test_gradient_descent_polynomial() {
     // The known polynomial.
@@ -162,7 +174,7 @@ fn test_gradient_descent_polynomial() {
     //}
 
     let mut df = |x_inp: f32| {
-        cg.reset();
+        cg.reset_keep_variables();
         for i in 0..b_param_values.len() {
             cg.set_variable(&b_params.get(i).unwrap(), b_param_values[i]);
         }

@@ -1,6 +1,6 @@
 //! This module abstracts how to compute values out of nodes.
 
-use std::{cell::RefCell, collections::BTreeMap};
+use std::{any::Any, cell::RefCell, collections::BTreeMap, default};
 
 use crate::core_syntax::{ComputValue, Expr, ExprBuilder, Ident, Node, Operator, VariableNameId};
 
@@ -32,6 +32,8 @@ where
     primals: RefCell<BTreeMap<Ident, F>>,
     /// Adjoins are updated during a backward pass.
     adjoins: RefCell<BTreeMap<Ident, F>>,
+    /// Variable values that are saved and restored upon reset.
+    saved_variables: RefCell<BTreeMap<Ident, F>>,
     eb: ExprBuilder<F, OP1, OP2>,
     calculator: &'a dyn Calculator<OP1, OP2, F>,
 }
@@ -51,6 +53,7 @@ where
         ComputGraph {
             primals: RefCell::new(BTreeMap::new()),
             adjoins: RefCell::new(BTreeMap::new()),
+            saved_variables: RefCell::new(BTreeMap::new()),
             eb,
             calculator,
         }
@@ -67,6 +70,7 @@ where
     pub fn reset_variable(&mut self, ident: &dyn AsRef<Ident>, value: F) -> Option<F> {
         let ident = ident.as_ref();
         self.assert_ident_is_variable(ident);
+        self.save_variable(ident, value.clone());
         self.primals
             .borrow_mut()
             .insert(ident.clone(), value.clone())
@@ -80,9 +84,33 @@ where
         node.clone()
     }
 
-    pub fn reset(&mut self) {
+    /// Remove primals and adjoins, but keep the variable values so the user only needs to
+    /// call [reset_variable] on some variables, and not all of them.
+    pub fn reset_keep_variables(&mut self) {
         self.primals = RefCell::new(BTreeMap::new());
         self.adjoins = RefCell::new(BTreeMap::new());
+        self.refill_variables();
+    }
+
+    fn save_variable(&mut self, ident: &Ident, value: F) {
+        let mut saved_variables = self.saved_variables.borrow_mut();
+        saved_variables.insert(ident.clone(), value);
+    }
+
+    fn refill_variables(&mut self) {
+        let pairs: Vec<(Ident, F)>;
+        {
+            let saved_variables = self.saved_variables.borrow();
+            // Copy pairs to memory to please the borrow checker. Maybe can be improved though.
+            pairs = saved_variables
+                .iter()
+                .map(|(k, v)| (k.clone(), v.clone()))
+                .collect();
+        }
+
+        for (ident, value) in pairs.iter() {
+            self.reset_variable(&ident, value.clone());
+        }
     }
 
     /// Forward pass, calculate primals.
