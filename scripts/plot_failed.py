@@ -38,7 +38,7 @@ def __(mo):
     return button_reload,
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(button_reload, filepath, mo, pd):
     button_reload
 

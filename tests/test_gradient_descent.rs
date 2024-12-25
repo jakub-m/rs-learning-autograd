@@ -1,6 +1,8 @@
 mod table;
 mod utils;
 
+use rand::{self, rngs::StdRng};
+use rand::{Rng, SeedableRng};
 use rs_autograd::{
     compute::ComputGraph,
     core_syntax::{Expr, ExprBuilder, Ident},
@@ -10,7 +12,7 @@ use rs_autograd::{
     },
 };
 use table::Table;
-use utils::{assert_function_and_derivative_similar, assert_functions_similar, FloatRange, Opts};
+use utils::{assert_functions_similar, FloatRange, Opts};
 
 #[test]
 fn test_gradient_descent_simple() {
@@ -83,7 +85,6 @@ fn test_gradient_descent_simple() {
     );
 }
 
-/// Fit simple single RELU.
 #[test]
 fn test_fit_simple_relu() {
     let target_poly = |x: f32| {
@@ -124,13 +125,12 @@ fn test_fit_simple_relu() {
         let mut tot_loss = 0_f32;
         let mut n = 0.0_f32;
         for x_inp in input_range.into_iter() {
-            cg.reset_primals_keep_variables();
             n += 1.0;
+            cg.reset_primals_keep_variables();
             cg.reset_variable(&x, x_inp);
             cg.reset_variable(&t, target_poly(x_inp));
             tot_loss += cg.forward(&loss);
             cg.backward(&loss);
-            // println!("xinp={}\tt={}\ty={}", x_inp, cg.forward(&t), cg.forward(&y))
         }
 
         let adjoins = params.map(|p| cg.adjoin(&p) / n);
@@ -155,6 +155,93 @@ fn test_fit_simple_relu() {
         &[
             Opts::InputRange(input_range),
             Opts::TestName("test_fit_simple_relu.csv"),
+        ],
+    );
+}
+
+#[ignore]
+#[test]
+fn test_relu_to_sin() {
+    let target_poly = |x: f32| x.sin();
+    let input_range = FloatRange::new(-3.1, 3.2, 0.1);
+
+    let eb = new_eb();
+    let x = eb.new_variable("x");
+
+    let params: Vec<Expr<'_, f32, FloatOperAry1, FloatOperAry2>> = (0..100)
+        .map(|i| eb.new_variable(format!("b{}", i).as_str()))
+        .collect();
+
+    let mut y = (0.0_f32).as_const(&eb);
+    for i in 0..(params.len() / 2) {
+        let p0 = params[2 * i];
+        let p1 = params[2 * i + 1];
+        y = y + (x - p0).relu() * p1;
+    }
+    let t = eb.new_variable("t");
+    let loss = (y - t).powi(2);
+
+    //assert_eq!(
+    //    "(((x - b1) * pow2((x - b2))) * pow3((x - b3)))",
+    //    format!("{}", y)
+    //);
+
+    let [x, t, y, loss] = [x, t, y, loss].map(|expr| expr.ident());
+    let params: Vec<Ident> = params.iter().map(|expr| expr.ident()).collect();
+    let mut cg = ComputGraph::<f32, _, _>::new(eb, &FloatCalculator);
+
+    let mut rng = StdRng::seed_from_u64(42);
+    let mut param_values: Vec<f32> = (0..params.len())
+        .map(|_| rng.gen_range(-3.0..3.0))
+        .collect();
+    // dbg!(&param_values);
+    let n_epochs = 1000;
+    let learn_rate = 0.001;
+    for i in 0..n_epochs {
+        print!("i {}", i);
+        //print!("\tparams {:?}", param_values);
+        cg.reset();
+        for i in 0..param_values.len() {
+            cg.reset_variable(&params[i], param_values[i]);
+        }
+
+        let mut n_steps = 0_usize;
+        let mut tot_loss = 0_f32;
+        for x_inp in input_range.into_iter() {
+            n_steps += 1;
+            cg.reset_primals_keep_variables();
+            cg.reset_variable(&x, x_inp);
+            cg.reset_variable(&t, target_poly(x_inp));
+            tot_loss += cg.forward(&loss);
+            cg.backward(&loss);
+        }
+
+        let adjoins: Vec<f32> = params
+            .iter()
+            .map(|p| cg.adjoin(&p) / (n_steps as f32))
+            .collect();
+
+        tot_loss = tot_loss / (n_steps as f32);
+        for i in 0..param_values.len() {
+            param_values[i] = param_values[i] - adjoins[i] * learn_rate;
+        }
+        //println!("\tadjoins{:?}", adjoins);
+        //println!("\tparam_values {:?}", param_values);
+        println!("\ttot_loss {}", tot_loss);
+        println!("");
+    }
+
+    let mut df = |x_inp: f32| {
+        cg.reset_primals_keep_variables();
+        cg.reset_variable(&x, x_inp);
+        cg.forward(&y)
+    };
+    assert_functions_similar(
+        target_poly,
+        &mut df,
+        &[
+            Opts::InputRange(input_range),
+            Opts::TestName("test_relu_to_sin.csv"),
         ],
     );
 }
