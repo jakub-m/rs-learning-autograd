@@ -170,8 +170,8 @@ where
 {
     /// The map contains expression trees with references.
     pub(super) id_to_node: RefCell<BTreeMap<Ident, Node<F, OP1, OP2>>>,
-    pub(super) id_to_name: RefCell<BTreeMap<VariableNameId, String>>,
-    pub(super) name_set: RefCell<HashSet<String>>,
+    id_to_name: RefCell<BTreeMap<VariableNameId, String>>,
+    name_set: RefCell<HashSet<String>>,
 }
 
 impl<'a, F, OP1, OP2> ExprBuilder<F, OP1, OP2>
@@ -214,6 +214,11 @@ where
     pub fn register_node_get_expr(&'a self, node: Node<F, OP1, OP2>) -> Expr<'a, F, OP1, OP2> {
         let ident = self.register_node(node);
         Expr { ident, eb: self }
+    }
+
+    pub fn get_name(&self, name_id: &VariableNameId) -> Option<String> {
+        let id_to_name = self.id_to_name.borrow();
+        id_to_name.get(name_id).map(|s| s.to_owned())
     }
 
     /// register is a mutable operation on self.map. `register` is not explicitly mut, to allow Copy and

@@ -91,9 +91,8 @@ where
     }
 
     pub fn get_name(&self, ident: &Ident) -> Option<String> {
-        let id_to_name = self.eb.id_to_name.borrow();
-        let variable_id = VariableNameId::from(*ident);
-        id_to_name.get(&variable_id).map(|s| s.to_owned())
+        let name_id = VariableNameId::from(*ident);
+        self.eb.get_name(&name_id)
     }
 
     /// Remove primals, keep the variables values so the user only needs to
@@ -172,11 +171,7 @@ where
     }
 
     pub fn get_variable_name(&self, name_id: &VariableNameId) -> String {
-        let id_to_name = self.eb.id_to_name.borrow();
-        id_to_name
-            .get(&name_id)
-            .expect("no name for such ident")
-            .to_owned()
+        self.eb.get_name(name_id).expect("no name for such ident")
     }
 
     /// Call `add_adjoin` to update adjoin for a node with partial adjoin.
