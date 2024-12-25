@@ -12,6 +12,7 @@ pub enum FloatOperAry1 {
     Ln,
     /// Power to constant integer value.
     PowI(i32),
+    Relu,
 }
 
 // Bespoke set of Ary2 operations
@@ -39,6 +40,7 @@ impl fmt::Display for FloatOperAry1 {
             FloatOperAry1::Sin => "sin".to_owned(),
             FloatOperAry1::Ln => "ln".to_owned(),
             FloatOperAry1::PowI(p) => format!("pow{}", p),
+            FloatOperAry1::Relu => "relu".to_owned(),
         };
         write!(f, "{}", s)
     }
@@ -112,6 +114,11 @@ impl<'a> ExprFloat<'a> {
     /// a^b where b is an integer.
     pub fn powi(&self, b: i32) -> ExprFloat<'a> {
         let node = Node::Ary1(FloatOperAry1::PowI(b), self.ident);
+        self.register_and_continue_expr(node)
+    }
+
+    pub fn relu(&self) -> ExprFloat<'a> {
+        let node = Node::Ary1(FloatOperAry1::Relu, self.ident);
         self.register_and_continue_expr(node)
     }
 }

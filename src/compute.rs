@@ -84,12 +84,18 @@ where
         node.clone()
     }
 
-    /// Remove primals and adjoins, but keep the variable values so the user only needs to
-    /// call [reset_variable] on some variables, and not all of them.
-    pub fn reset_keep_variables(&mut self) {
+    /// Remove primals, keep the variables values so the user only needs to
+    /// call [reset_variable][ComputGraph::reset_variable] on some variables, and not all of them.
+    pub fn reset_primals_keep_variables(&mut self) {
+        self.primals = RefCell::new(BTreeMap::new());
+        self.refill_variables();
+    }
+
+    /// Reset all the internal state (primals, adjoins).
+    pub fn reset(&mut self) {
         self.primals = RefCell::new(BTreeMap::new());
         self.adjoins = RefCell::new(BTreeMap::new());
-        self.refill_variables();
+        self.saved_variables = RefCell::new(BTreeMap::new());
     }
 
     fn save_variable(&mut self, ident: &Ident, value: F) {

@@ -37,6 +37,14 @@ impl Calculator<FloatOperAry1, FloatOperAry2, f32> for FloatCalculator {
                     let a = cg.forward(&a);
                     a.powi(b)
                 }
+                FloatOperAry1::Relu => {
+                    let a = cg.forward(&a);
+                    if a <= 0.0 {
+                        0.0
+                    } else {
+                        a
+                    }
+                }
             },
             Node::Ary2(op, a, b) => match op {
                 FloatOperAry2::Add => {
@@ -94,6 +102,11 @@ impl Calculator<FloatOperAry1, FloatOperAry2, f32> for FloatCalculator {
                 FloatOperAry1::PowI(b) => {
                     let a = cg.primal(&v1);
                     self.backward(cg, &v1, adjoin * ((b as f32) * a.powi(b - 1)));
+                }
+                FloatOperAry1::Relu => {
+                    let v1_p = cg.primal(&v1);
+                    let v1_ad: f32 = if v1_p <= 0.0 { 0.0 } else { 1.0 };
+                    self.backward(cg, &v1, adjoin * v1_ad);
                 }
             },
             Node::Ary2(op, v1, v2) => match op {
