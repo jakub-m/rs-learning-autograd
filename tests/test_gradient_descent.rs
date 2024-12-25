@@ -159,7 +159,9 @@ fn test_fit_simple_relu() {
     );
 }
 
-// #[ignore]
+/// This works but is very slow, like 10 minutes to finish with
+/// n_epochs = 10000 and learn_rate = 0.01.
+#[ignore]
 #[test]
 fn test_relu_to_sin() {
     let target_poly = |x: f32| x.sin();
@@ -196,7 +198,7 @@ fn test_relu_to_sin() {
         .collect();
     // dbg!(&param_values);
     let n_epochs = 10000;
-    let learn_rate = 0.0001;
+    let learn_rate = 0.01;
     for i in 0..n_epochs {
         print!("i {}", i);
         //print!("\tparams {:?}", param_values);
@@ -228,7 +230,6 @@ fn test_relu_to_sin() {
         //println!("\tadjoins{:?}", adjoins);
         //println!("\tparam_values {:?}", param_values);
         println!("\ttot_loss {}", tot_loss);
-        println!("");
     }
 
     let mut df = |x_inp: f32| {
