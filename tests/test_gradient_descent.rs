@@ -88,8 +88,9 @@ fn test_gradient_descent_simple() {
 #[test]
 fn test_gradient_descent_polynomial() {
     // The known polynomial.
-    let target_poly = |x: f32| -1.0 * ((x - 2.0) * (x + 1.0).powf(2.0) * (x - 1.0).powf(3.0));
-    let input_range = FloatRange::new(-1.1, 2.2, 0.1);
+    //let target_poly = |x: f32| -1.0 * ((x - 2.0) * (x + 1.0).powf(2.0) * (x - 1.0).powf(3.0));
+    let target_poly = |x: f32| x.sin();
+    let input_range = FloatRange::new(-3.1, 3.2, 0.1);
 
     let mut table_xy = Table::<f32>::new();
     table_xy.extend_col("x", input_range.into_iter());
@@ -124,41 +125,41 @@ fn test_gradient_descent_polynomial() {
     let mut cg = ComputGraph::<f32, _, _>::new(eb, &FloatCalculator);
 
     let mut b_param_values: Vec<f32> = (0..b_params.len()).map(|i| 0.01_f32 * (i as f32)).collect();
-    let n_epochs = 1000;
-    let learn_rate = 0.000001;
-    for i in 0..n_epochs {
-        print!("i {}", i);
-        print!("\tb {:?}", b_param_values);
-        cg.reset();
-        for i in 0..b_param_values.len() {
-            cg.reset_variable(&b_params[i], b_param_values[i]);
-        }
+    let n_epochs = 1;
+    let learn_rate = 0.0000001;
+    //for i in 0..n_epochs {
+    //    print!("i {}", i);
+    //    print!("\tb {:?}", b_param_values);
+    //    cg.reset();
+    //    for i in 0..b_param_values.len() {
+    //        cg.reset_variable(&b_params[i], b_param_values[i]);
+    //    }
 
-        let mut n_steps = 0_usize;
-        let mut tot_loss = 0_f32;
-        for x_inp in input_range.into_iter() {
-            n_steps += 1;
-            cg.reset_variable(&x, x_inp);
-            cg.reset_variable(&t, target_poly(x_inp));
-            tot_loss += cg.forward(&loss);
-            cg.backward(&loss);
-        }
+    //    let mut n_steps = 0_usize;
+    //    let mut tot_loss = 0_f32;
+    //    for x_inp in input_range.into_iter() {
+    //        n_steps += 1;
+    //        cg.reset_variable(&x, x_inp);
+    //        cg.reset_variable(&t, target_poly(x_inp));
+    //        tot_loss += cg.forward(&loss);
+    //        cg.backward(&loss);
+    //    }
 
-        let b_adjoins: Vec<f32> = b_params
-            .iter()
-            .map(|b| cg.adjoin(&b) / (n_steps as f32))
-            .collect();
+    //    let b_adjoins: Vec<f32> = b_params
+    //        .iter()
+    //        .map(|b| cg.adjoin(&b) / (n_steps as f32))
+    //        .collect();
 
-        tot_loss = tot_loss / (n_steps as f32);
-        table_loss.append_col("loss", tot_loss);
-        table_loss.append_col("i", i as f32);
-        print!("\tadjoins{:?}", b_adjoins);
-        print!("\ttot_loss {}", tot_loss);
-        println!("");
-        for i in 0..b_param_values.len() {
-            b_param_values[i] = b_param_values[i] - b_adjoins[i] * learn_rate;
-        }
-    }
+    //    tot_loss = tot_loss / (n_steps as f32);
+    //    table_loss.append_col("loss", tot_loss);
+    //    table_loss.append_col("i", i as f32);
+    //    print!("\tadjoins{:?}", b_adjoins);
+    //    print!("\ttot_loss {}", tot_loss);
+    //    println!("");
+    //    for i in 0..b_param_values.len() {
+    //        b_param_values[i] = b_param_values[i] - b_adjoins[i] * learn_rate;
+    //    }
+    //}
 
     let mut df = |x_inp: f32| {
         cg.reset();
@@ -173,9 +174,9 @@ fn test_gradient_descent_polynomial() {
     table_xy
         .to_csv("test_gradient_descent_polynomial.csv")
         .unwrap();
-    table_loss
-        .to_csv("test_gradient_descent_polynomial_loss.csv")
-        .unwrap();
+    //table_loss
+    //    .to_csv("test_gradient_descent_polynomial_loss.csv")
+    //    .unwrap();
 
     assert!(false);
 }
