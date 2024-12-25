@@ -1,5 +1,6 @@
 use crate::core_syntax::{ComputValue, DefaultAdjoin, Expr, Node, Operator};
-use nalgebra::DMatrix;
+use nalgebra as na;
+use nalgebra::VecStorage;
 use std::fmt;
 use std::ops;
 
@@ -39,15 +40,39 @@ impl fmt::Display for NaOperAry2 {
     }
 }
 
-impl ComputValue for DMatrix<f32> {}
+/// A thin around [DMatrix] to avoid lengthy expansion of DMatrix generic in the code.
+#[derive(Debug, Clone)]
+pub struct DMatrixF32(na::DMatrix<f32>);
 
-impl DefaultAdjoin for DMatrix<f32> {
+impl From<na::Matrix<f32, na::Dyn, na::Dyn, VecStorage<f32, na::Dyn, na::Dyn>>> for DMatrixF32 {
+    fn from(value: na::Matrix<f32, na::Dyn, na::Dyn, VecStorage<f32, na::Dyn, na::Dyn>>) -> Self {
+        DMatrixF32(value)
+    }
+}
+
+impl ComputValue for DMatrixF32 {}
+
+impl ops::Add for DMatrixF32 {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        DMatrixF32(self.0 + rhs.0)
+    }
+}
+
+impl fmt::Display for DMatrixF32 {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl DefaultAdjoin for DMatrixF32 {
     fn default_adjoin() -> Self {
         todo!() // Is this even possible with DMatrix of unknown size?
     }
 }
 
-type ExprDMatrix<'a> = Expr<'a, DMatrix<f32>, NaOperAry1, NaOperAry2>;
+type ExprDMatrix<'a> = Expr<'a, DMatrixF32, NaOperAry1, NaOperAry2>;
 
 impl<'a> ExprDMatrix<'a> {
     pub fn relu(&self) -> ExprDMatrix<'a> {
@@ -78,9 +103,8 @@ impl<'a> ops::Mul for ExprDMatrix<'a> {
 
 #[cfg(test)]
 mod tests {
-    use super::{NaOperAry1, NaOperAry2};
+    use super::{DMatrixF32, NaOperAry1, NaOperAry2};
     use crate::core_syntax::ExprBuilder;
-    use nalgebra::DMatrix;
 
     #[test]
     fn syntax_add() {
@@ -89,6 +113,14 @@ mod tests {
         let b = eb.new_variable("b");
         let c = a + b;
         assert_eq!("(a + b)", format!("{}", c));
+    }
+
+    #[test]
+    fn syntax_copy() {
+        let eb = new_eb();
+        let a = eb.new_variable("a");
+        let c = a + a;
+        assert_eq!("(a + a)", format!("{}", c));
     }
 
     #[test]
@@ -108,7 +140,7 @@ mod tests {
         assert_eq!("relu(a)", format!("{}", b));
     }
 
-    fn new_eb() -> ExprBuilder<DMatrix<f32>, NaOperAry1, NaOperAry2> {
+    fn new_eb() -> ExprBuilder<DMatrixF32, NaOperAry1, NaOperAry2> {
         ExprBuilder::new()
     }
 }

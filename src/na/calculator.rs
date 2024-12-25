@@ -1,6 +1,4 @@
-use nalgebra::DMatrix;
-
-use super::syntax::{NaOperAry1, NaOperAry2};
+use super::syntax::{DMatrixF32, NaOperAry1, NaOperAry2};
 use crate::{
     compute::{Calculator, ComputGraph},
     core_syntax::Ident,
@@ -8,20 +6,20 @@ use crate::{
 
 pub struct DMatrixCalculator;
 
-impl Calculator<NaOperAry1, NaOperAry2, DMatrix<f32>> for DMatrixCalculator {
+impl Calculator<NaOperAry1, NaOperAry2, DMatrixF32> for DMatrixCalculator {
     fn forward(
         &self,
-        cg: &ComputGraph<DMatrix<f32>, NaOperAry1, NaOperAry2>,
+        cg: &ComputGraph<DMatrixF32, NaOperAry1, NaOperAry2>,
         ident: &Ident,
-    ) -> DMatrix<f32> {
+    ) -> DMatrixF32 {
         todo!()
     }
 
     fn backward(
         &self,
-        cg: &ComputGraph<DMatrix<f32>, NaOperAry1, NaOperAry2>,
+        cg: &ComputGraph<DMatrixF32, NaOperAry1, NaOperAry2>,
         ident: &Ident,
-        adjoin: DMatrix<f32>,
+        adjoin: DMatrixF32,
     ) {
         todo!()
     }
@@ -29,26 +27,29 @@ impl Calculator<NaOperAry1, NaOperAry2, DMatrix<f32>> for DMatrixCalculator {
 
 #[cfg(test)]
 mod tests {
-    use nalgebra::DMatrix;
-
+    use super::DMatrixCalculator;
     use crate::{
         compute::ComputGraph,
         core_syntax::ExprBuilder,
-        na::syntax::{NaOperAry1, NaOperAry2},
+        na::syntax::{DMatrixF32, NaOperAry1, NaOperAry2},
     };
-
-    use super::DMatrixCalculator;
+    use nalgebra as na;
 
     #[test]
-    fn forward() {
+    fn forward_a_plus_b() {
         let eb = new_eb();
         let a = eb.new_variable("a");
         let b = eb.new_variable("b");
+        let c = a + b;
 
-        let cb = ComputGraph::<DMatrix<f32>, NaOperAry1, NaOperAry2>::new(eb, &DMatrixCalculator);
+        //let [a, b, c] = [a, b, c].map(|p| p.ident());
+        //let mut cb = ComputGraph::<DMatrixF32, NaOperAry1, NaOperAry2>::new(eb, &DMatrixCalculator);
+        //cb.set_variable(&a, na::DMatrix::from_element(3, 3, 1.0_f32).into());
+        //cb.set_variable(&b, na::DMatrix::from_element(3, 3, 2.0_f32).into());
+        todo!()
     }
 
-    fn new_eb() -> ExprBuilder<DMatrix<f32>, NaOperAry1, NaOperAry2> {
+    fn new_eb() -> ExprBuilder<DMatrixF32, NaOperAry1, NaOperAry2> {
         ExprBuilder::new()
     }
 }
