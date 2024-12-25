@@ -32,13 +32,20 @@ mod tests {
     use nalgebra::DMatrix;
 
     use crate::{
+        compute::ComputGraph,
         core_syntax::ExprBuilder,
         na::syntax::{NaOperAry1, NaOperAry2},
     };
 
+    use super::DMatrixCalculator;
+
     #[test]
     fn forward() {
         let eb = new_eb();
+        let a = eb.new_variable("a");
+        let b = eb.new_variable("b");
+
+        let cb = ComputGraph::<DMatrix<f32>, NaOperAry1, NaOperAry2>::new(eb, &DMatrixCalculator);
     }
 
     fn new_eb() -> ExprBuilder<DMatrix<f32>, NaOperAry1, NaOperAry2> {
