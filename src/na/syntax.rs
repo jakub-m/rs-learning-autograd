@@ -1,11 +1,10 @@
 use crate::core_syntax::{ComputValue, DefaultAdjoin, Expr, Node, Operator};
-use nalgebra as na;
-use nalgebra::{DMatrix, Dyn, VecStorage};
+use nalgebra::DMatrix;
 use std::fmt;
 use std::ops;
 
 #[derive(Debug, Clone, Copy)]
-enum NaOperAry1 {
+pub enum NaOperAry1 {
     //ReLU
     Relu,
 }
@@ -13,7 +12,7 @@ enum NaOperAry1 {
 impl Operator for NaOperAry1 {}
 
 #[derive(Debug, Clone, Copy)]
-enum NaOperAry2 {
+pub enum NaOperAry2 {
     Add,
     // Element-wise multiplication.
     MulComp,
@@ -66,7 +65,8 @@ impl<'a> ops::Add for ExprDMatrix<'a> {
     }
 }
 
-/// **Element-wise** multiplication.
+/// **Element-wise** multiplication. It's element-wise and not a product since it seems to be more common,
+/// and easier to use in an expression.
 impl<'a> ops::Mul for ExprDMatrix<'a> {
     type Output = ExprDMatrix<'a>;
 
@@ -80,7 +80,6 @@ impl<'a> ops::Mul for ExprDMatrix<'a> {
 mod tests {
     use super::{NaOperAry1, NaOperAry2};
     use crate::core_syntax::ExprBuilder;
-    use nalgebra as na;
     use nalgebra::DMatrix;
 
     #[test]
