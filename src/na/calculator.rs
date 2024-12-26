@@ -72,6 +72,14 @@ mod tests {
         assert_eq!(y.m(), &na::DMatrix::from_element(2, 2, 7.0));
     }
 
+    #[test]
+    fn forward_relu() {
+        let eb = new_eb();
+        let a = eb.new_variable("a");
+        let y = a.relu();
+        panic!()
+    }
+
     fn new_eb() -> ExprBuilder<DMatrixF32, NaOperAry1, NaOperAry2> {
         ExprBuilder::new()
     }
