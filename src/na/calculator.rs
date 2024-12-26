@@ -46,9 +46,9 @@ impl Calculator<NaOperAry1, NaOperAry2, DMatrixF32> for DMatrixCalculator {
         &self,
         cg: &ComputGraph<DMatrixF32, NaOperAry1, NaOperAry2>,
         ident: &Ident,
-        adjoin: DMatrixF32,
+        adjoin: &DMatrixF32,
     ) {
-        cg.add_adjoin(ident, adjoin.clone()); // TODO pass reference here!
+        cg.add_adjoin(ident, adjoin);
         let node = cg.get_node(ident);
         match node {
             Node::Const(_) => (),
@@ -58,8 +58,8 @@ impl Calculator<NaOperAry1, NaOperAry2, DMatrixF32> for DMatrixCalculator {
             },
             Node::Ary2(op, v1, v2) => match op {
                 NaOperAry2::Add => {
-                    self.backward(cg, &v1, adjoin.clone());
-                    self.backward(cg, &v2, adjoin.clone());
+                    self.backward(cg, &v1, adjoin);
+                    self.backward(cg, &v2, adjoin);
                 }
                 NaOperAry2::MulComp => todo!(),
             },

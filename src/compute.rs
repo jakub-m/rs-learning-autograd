@@ -159,7 +159,7 @@ where
     pub fn backward(&self, ident: &dyn AsRef<Ident>) {
         let ident = ident.as_ref();
         let adjoin = F::default_adjoin(self.forward(ident));
-        self.calculator.backward(self, ident, adjoin);
+        self.calculator.backward(self, ident, &adjoin);
     }
 
     fn assert_ident_is_variable(&self, ident: &Ident) {
@@ -176,7 +176,7 @@ where
     }
 
     /// Call `add_adjoin` to update adjoin for a node with partial adjoin.
-    pub fn add_adjoin(&self, ident: &Ident, adjoin: F) {
+    pub fn add_adjoin(&self, ident: &Ident, adjoin: &F) {
         let mut adjoins = self.adjoins.borrow_mut();
         let updated = adjoins
             .get(ident)
@@ -223,7 +223,7 @@ where
     fn forward(&self, cg: &ComputGraph<F, OP1, OP2>, ident: &Ident) -> F;
 
     /// The implementation of the backward pass is responsible for updating partial adjoins though ComputGraph.
-    fn backward(&self, cg: &ComputGraph<F, OP1, OP2>, ident: &Ident, adjoin: F);
+    fn backward(&self, cg: &ComputGraph<F, OP1, OP2>, ident: &Ident, adjoin: &F);
 }
 
 #[cfg(test)]
