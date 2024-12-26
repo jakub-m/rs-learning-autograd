@@ -44,6 +44,16 @@ impl fmt::Display for NaOperAry2 {
 #[derive(Debug, Clone)]
 pub struct DMatrixF32(na::DMatrix<f32>);
 
+impl DMatrixF32 {
+    pub fn new(m: na::DMatrix<f32>) -> DMatrixF32 {
+        DMatrixF32(m)
+    }
+
+    pub fn m(&self) -> &na::DMatrix<f32> {
+        &self.0
+    }
+}
+
 impl From<na::Matrix<f32, na::Dyn, na::Dyn, VecStorage<f32, na::Dyn, na::Dyn>>> for DMatrixF32 {
     fn from(value: na::Matrix<f32, na::Dyn, na::Dyn, VecStorage<f32, na::Dyn, na::Dyn>>) -> Self {
         DMatrixF32(value)

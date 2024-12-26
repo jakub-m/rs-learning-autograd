@@ -79,7 +79,7 @@ where
 
 /// An identifier coupled with a reference to ExprBuilder, so it can be later used in further arithmetic operations.
 /// Expr should be Copy so we can have ergonomic expressions like `y = v1 + v2` without additional `&` or `.clone()`.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub struct Expr<'a, F, OP1, OP2>
 where
     F: ComputValue,
@@ -90,6 +90,16 @@ where
 
     // eb cannot be mut because mut is not Clone, therefore is not Copy, and we want Copy to be able to do `a + b` on those expressions.
     eb: &'a ExprBuilder<F, OP1, OP2>,
+}
+
+/// When I used `Copy` with `derive`, `ExprDMatrix` was not Copy :( Need to figure out why. Possibly related to
+/// the differences [mentioned in the doc](https://doc.rust-lang.org/std/marker/trait.Copy.html#how-can-i-implement-copy).
+impl<'a, F, OP1, OP2> Copy for Expr<'a, F, OP1, OP2>
+where
+    F: ComputValue,
+    OP1: Operator,
+    OP2: Operator,
+{
 }
 
 impl<'a, F, OP1, OP2> Expr<'a, F, OP1, OP2>

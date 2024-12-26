@@ -1,7 +1,7 @@
 use super::syntax::{DMatrixF32, NaOperAry1, NaOperAry2};
 use crate::{
     compute::{Calculator, ComputGraph},
-    core_syntax::Ident,
+    core_syntax::{Ident, Node},
 };
 
 pub struct DMatrixCalculator;
@@ -12,7 +12,26 @@ impl Calculator<NaOperAry1, NaOperAry2, DMatrixF32> for DMatrixCalculator {
         cg: &ComputGraph<DMatrixF32, NaOperAry1, NaOperAry2>,
         ident: &Ident,
     ) -> DMatrixF32 {
-        todo!()
+        let node = cg.get_node(ident);
+        match node {
+            Node::Const(value) => value,
+            Node::Variable(name_id) => panic!("Variable {} should have been set!", name_id),
+            Node::Ary1(op, a) => match op {
+                NaOperAry1::Relu => todo!(),
+            },
+            Node::Ary2(op, a, b) => match op {
+                NaOperAry2::Add => {
+                    let a = cg.forward(&a);
+                    let b = cg.forward(&b);
+                    DMatrixF32::new(a.m() + b.m())
+                }
+                NaOperAry2::MulComp => {
+                    let a = cg.forward(&a);
+                    let b = cg.forward(&b);
+                    DMatrixF32::new(a.m().component_mul(b.m()))
+                }
+            },
+        }
     }
 
     fn backward(
@@ -36,17 +55,21 @@ mod tests {
     use nalgebra as na;
 
     #[test]
-    fn forward_a_plus_b() {
+    fn forward_add_mul() {
         let eb = new_eb();
         let a = eb.new_variable("a");
         let b = eb.new_variable("b");
-        let c = a + b;
+        let c = eb.new_variable("c");
+        let y = a + b * c;
+        assert_eq!("(a + (b .* c))", format!("{}", y));
 
-        //let [a, b, c] = [a, b, c].map(|p| p.ident());
-        //let mut cb = ComputGraph::<DMatrixF32, NaOperAry1, NaOperAry2>::new(eb, &DMatrixCalculator);
-        //cb.set_variable(&a, na::DMatrix::from_element(3, 3, 1.0_f32).into());
-        //cb.set_variable(&b, na::DMatrix::from_element(3, 3, 2.0_f32).into());
-        todo!()
+        let [a, b, c, y] = [a, b, c, y].map(|p| p.ident());
+        let mut cb = ComputGraph::<DMatrixF32, NaOperAry1, NaOperAry2>::new(eb, &DMatrixCalculator);
+        cb.set_variable(&a, na::DMatrix::from_element(2, 2, 1.0_f32).into());
+        cb.set_variable(&b, na::DMatrix::from_element(2, 2, 2.0_f32).into());
+        cb.set_variable(&c, na::DMatrix::from_element(2, 2, 3.0_f32).into());
+        let y = cb.forward(&y);
+        assert_eq!(y.m(), &na::DMatrix::from_element(2, 2, 7.0));
     }
 
     fn new_eb() -> ExprBuilder<DMatrixF32, NaOperAry1, NaOperAry2> {

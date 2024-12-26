@@ -14,6 +14,7 @@ impl Calculator<FloatOperAry1, FloatOperAry2, f32> for FloatCalculator {
         match node {
             Node::Const(value) => value,
             Node::Variable(name_id) => {
+                // Should have been already returned by ComputGraph.
                 panic!(
                     "Variable not set {} {}",
                     cg.get_variable_name(&name_id),
