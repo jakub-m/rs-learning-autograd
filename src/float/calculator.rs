@@ -79,7 +79,7 @@ impl Calculator<FloatOperAry1, FloatOperAry2, f32> for FloatCalculator {
         ident: &Ident,
         adjoin: f32,
     ) {
-        cg.add_adjoin(ident, adjoin); // TODO move to common place?
+        cg.add_adjoin(ident, adjoin);
         let node = cg.get_node(ident);
         match node {
             Node::Variable(_) => (),
@@ -112,11 +112,11 @@ impl Calculator<FloatOperAry1, FloatOperAry2, f32> for FloatCalculator {
             },
             Node::Ary2(op, v1, v2) => match op {
                 FloatOperAry2::Add => {
-                    self.backward(cg, &v1, adjoin * 1.0);
-                    self.backward(cg, &v2, adjoin * 1.0);
+                    self.backward(cg, &v1, adjoin);
+                    self.backward(cg, &v2, adjoin);
                 }
                 FloatOperAry2::Sub => {
-                    self.backward(cg, &v1, adjoin * 1.0);
+                    self.backward(cg, &v1, adjoin);
                     self.backward(cg, &v2, adjoin * -1.0);
                 }
                 FloatOperAry2::Mul => {
