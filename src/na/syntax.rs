@@ -3,6 +3,7 @@ use nalgebra as na;
 use nalgebra::VecStorage;
 use std::fmt;
 use std::ops;
+use std::rc::Rc;
 
 #[derive(Debug, Clone, Copy)]
 pub enum NaOperAry1 {
@@ -40,29 +41,24 @@ impl fmt::Display for NaOperAry2 {
     }
 }
 
-/// A thin around [DMatrix] to avoid lengthy expansion of DMatrix generic in the code.
+/// Use [Rc] so `.clone` does not clone whole matrix, but only a reference to the matrix.
 #[derive(Debug, Clone)]
-pub struct DMatrixF32(na::DMatrix<f32>);
+pub struct DMatrixF32(Rc<na::DMatrix<f32>>);
 
 impl DMatrixF32 {
     pub fn new(m: na::DMatrix<f32>) -> DMatrixF32 {
-        DMatrixF32(m)
+        DMatrixF32(Rc::new(m))
     }
 
     /// Borrow the underlying matrix.
     pub fn m(&self) -> &na::DMatrix<f32> {
         &self.0
     }
-
-    /// Borrow mutably underlying matrix.
-    pub fn m_mut(&mut self) -> &mut na::DMatrix<f32> {
-        &mut self.0
-    }
 }
 
 impl From<na::Matrix<f32, na::Dyn, na::Dyn, VecStorage<f32, na::Dyn, na::Dyn>>> for DMatrixF32 {
     fn from(value: na::Matrix<f32, na::Dyn, na::Dyn, VecStorage<f32, na::Dyn, na::Dyn>>) -> Self {
-        DMatrixF32(value)
+        DMatrixF32(Rc::new(value))
     }
 }
 
@@ -72,7 +68,7 @@ impl ops::Add for DMatrixF32 {
     type Output = Self;
 
     fn add(self, rhs: Self) -> Self::Output {
-        DMatrixF32(self.0 + rhs.0)
+        DMatrixF32::new(self.0.as_ref() + rhs.0.as_ref())
     }
 }
 
@@ -86,7 +82,7 @@ impl DefaultAdjoin for DMatrixF32 {
     fn default_adjoin(value: Self) -> Self {
         let m = value.m();
         let m = na::DMatrix::from_element(m.nrows(), m.ncols(), 1.0);
-        DMatrixF32(m)
+        DMatrixF32::new(m)
     }
 }
 

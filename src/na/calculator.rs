@@ -18,13 +18,14 @@ impl Calculator<NaOperAry1, NaOperAry2, DMatrixF32> for DMatrixCalculator {
             Node::Variable(name_id) => panic!("Variable {} should have been set!", name_id),
             Node::Ary1(op, a) => match op {
                 NaOperAry1::Relu => {
-                    let mut a = cg.forward(&a);
-                    for e in a.m_mut().iter_mut() {
+                    let primal = cg.forward(&a);
+                    let mut primal = primal.m().clone();
+                    for e in primal.iter_mut() {
                         if *e <= 0.0 {
                             *e = 0.0
                         }
                     }
-                    a
+                    DMatrixF32::new(primal)
                 }
             },
             Node::Ary2(op, a, b) => match op {
@@ -55,12 +56,12 @@ impl Calculator<NaOperAry1, NaOperAry2, DMatrixF32> for DMatrixCalculator {
             Node::Variable(_) => (),
             Node::Ary1(op, v1) => match op {
                 NaOperAry1::Relu => {
-                    let mut m = cg.primal(&v1);
                     // Mutate the primal in-place (it's cloned), so now it becomes an adjoin.
-                    for e in m.m_mut().iter_mut() {
+                    let mut m = cg.primal(&v1).m().clone();
+                    for e in m.iter_mut() {
                         *e = if *e <= 0.0 { 0.0 } else { 1.0 };
                     }
-                    self.backward(cg, &v1, &DMatrixF32::new(adjoin.m().component_mul(m.m())));
+                    self.backward(cg, &v1, &DMatrixF32::new(adjoin.m().component_mul(&m)));
                 }
             },
             Node::Ary2(op, v1, v2) => match op {
