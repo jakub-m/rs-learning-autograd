@@ -49,8 +49,14 @@ impl DMatrixF32 {
         DMatrixF32(m)
     }
 
+    /// Borrow the underlying matrix.
     pub fn m(&self) -> &na::DMatrix<f32> {
         &self.0
+    }
+
+    /// Borrow mutably underlying matrix.
+    pub fn m_mut(&mut self) -> &mut na::DMatrix<f32> {
+        &mut self.0
     }
 }
 

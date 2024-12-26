@@ -17,7 +17,15 @@ impl Calculator<NaOperAry1, NaOperAry2, DMatrixF32> for DMatrixCalculator {
             Node::Const(value) => value,
             Node::Variable(name_id) => panic!("Variable {} should have been set!", name_id),
             Node::Ary1(op, a) => match op {
-                NaOperAry1::Relu => todo!(),
+                NaOperAry1::Relu => {
+                    let mut a = cg.forward(&a);
+                    for e in a.m_mut().iter_mut() {
+                        if *e <= 0.0 {
+                            *e = 0.0
+                        }
+                    }
+                    a
+                }
             },
             Node::Ary2(op, a, b) => match op {
                 NaOperAry2::Add => {
@@ -77,7 +85,18 @@ mod tests {
         let eb = new_eb();
         let a = eb.new_variable("a");
         let y = a.relu();
-        panic!()
+
+        let [a, y] = [a, y].map(|p| p.ident());
+        let mut cb = ComputGraph::<DMatrixF32, NaOperAry1, NaOperAry2>::new(eb, &DMatrixCalculator);
+        cb.set_variable(
+            &a,
+            na::DMatrix::from_vec(2, 2, vec![-1.0, -3.0, 0.0, 42.0]).into(),
+        );
+        let y = cb.forward(&y);
+        assert_eq!(
+            y.m(),
+            &na::DMatrix::from_vec(2, 2, vec![0.0, 0.0, 0.0, 42.0])
+        );
     }
 
     fn new_eb() -> ExprBuilder<DMatrixF32, NaOperAry1, NaOperAry2> {
