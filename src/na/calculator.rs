@@ -54,14 +54,34 @@ impl Calculator<NaOperAry1, NaOperAry2, DMatrixF32> for DMatrixCalculator {
             Node::Const(_) => (),
             Node::Variable(_) => (),
             Node::Ary1(op, v1) => match op {
-                NaOperAry1::Relu => todo!(),
+                NaOperAry1::Relu => {
+                    let mut m = cg.primal(&v1);
+                    // Mutate the primal in-place (it's cloned), so now it becomes an adjoin.
+                    for e in m.m_mut().iter_mut() {
+                        *e = if *e <= 0.0 { 0.0 } else { 1.0 };
+                    }
+                    self.backward(cg, &v1, &DMatrixF32::new(adjoin.m().component_mul(m.m())));
+                }
             },
             Node::Ary2(op, v1, v2) => match op {
                 NaOperAry2::Add => {
                     self.backward(cg, &v1, adjoin);
                     self.backward(cg, &v2, adjoin);
                 }
-                NaOperAry2::MulComp => todo!(),
+                NaOperAry2::MulComp => {
+                    let v1_p = cg.primal(&v1);
+                    let v2_p = cg.primal(&v2);
+                    self.backward(
+                        cg,
+                        &v1,
+                        &DMatrixF32::new(adjoin.m().component_mul(v2_p.m())),
+                    );
+                    self.backward(
+                        cg,
+                        &v2,
+                        &DMatrixF32::new(adjoin.m().component_mul(v1_p.m())),
+                    );
+                }
             },
         }
     }
@@ -130,9 +150,31 @@ mod tests {
         cb.forward(&y);
         cb.backward(&y);
 
-        assert_eq!(cb.adjoin(&a).m(), &na::DMatrix::from_element(2, 2, 99.0));
-        assert_eq!(cb.adjoin(&b).m(), &na::DMatrix::from_element(2, 2, 99.0));
-        assert_eq!(cb.adjoin(&c).m(), &na::DMatrix::from_element(2, 2, 99.0));
+        // TODO: check by hand that those adjoins are correct.
+        assert_eq!(cb.adjoin(&a).m(), &na::DMatrix::from_element(2, 2, 1.0));
+        assert_eq!(cb.adjoin(&b).m(), &na::DMatrix::from_element(2, 2, 3.0));
+        assert_eq!(cb.adjoin(&c).m(), &na::DMatrix::from_element(2, 2, 2.0));
+    }
+
+    #[test]
+    fn backward_relu() {
+        let eb = new_eb();
+        let a = eb.new_variable("a");
+        let y = a.relu();
+
+        let [a, y] = [a, y].map(|p| p.ident());
+        let mut cb = ComputGraph::<DMatrixF32, NaOperAry1, NaOperAry2>::new(eb, &DMatrixCalculator);
+        cb.set_variable(
+            &a,
+            na::DMatrix::from_vec(2, 2, vec![-2.0, 0.0, 0.0, 2.0]).into(),
+        );
+        cb.forward(&y);
+        cb.backward(&y);
+
+        assert_eq!(
+            cb.adjoin(&a).m(),
+            &na::DMatrix::from_vec(2, 2, vec![0.0, 0.0, 0.0, 1.0])
+        );
     }
 
     fn new_eb() -> ExprBuilder<DMatrixF32, NaOperAry1, NaOperAry2> {

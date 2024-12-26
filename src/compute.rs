@@ -190,6 +190,7 @@ where
             .get(ident)
             .expect(format!("Primal missing for {}", ident).as_str())
             .clone()
+        // Cloning full matrices (e.g. for nalgebra is very inefficient. Better use Box around the matrices).
     }
 
     pub fn adjoin(&self, ident: &Ident) -> F {
