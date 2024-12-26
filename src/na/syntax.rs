@@ -83,8 +83,10 @@ impl fmt::Display for DMatrixF32 {
 }
 
 impl DefaultAdjoin for DMatrixF32 {
-    fn default_adjoin() -> Self {
-        todo!() // Is this even possible with DMatrix of unknown size?
+    fn default_adjoin(value: Self) -> Self {
+        let m = value.m();
+        let m = na::DMatrix::from_element(m.nrows(), m.ncols(), 1.0);
+        DMatrixF32(m)
     }
 }
 

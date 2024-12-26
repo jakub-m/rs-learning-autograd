@@ -27,7 +27,7 @@ pub enum FloatOperAry2 {
 
 impl ComputValue for f32 {}
 impl DefaultAdjoin for f32 {
-    fn default_adjoin() -> Self {
+    fn default_adjoin(_: Self) -> Self {
         1.0
     }
 }

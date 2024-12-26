@@ -14,7 +14,11 @@ pub trait ComputValue:
 
 /// Returns an initial adjoin for a type (a "1").
 pub trait DefaultAdjoin {
-    fn default_adjoin() -> Self;
+    /// Return default value of adjoin ("1"). For simple type like f32, then the return value
+    /// is obviously 1.0. But, when the user uses some dynamically-sized matrix, then it's not
+    /// obvious what the size should be, and the input `value` should help with figuring those
+    /// dynamic aspects of the type.
+    fn default_adjoin(value: Self) -> Self;
 }
 
 /// Identifier of an [Expr][Expr]. Ident is [Copy] so we can have ergonomic syntax of building

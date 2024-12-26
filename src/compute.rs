@@ -158,7 +158,8 @@ where
     /// (leaf X nodes) is for other nodes that the backward pass is run for (Y).
     pub fn backward(&self, ident: &dyn AsRef<Ident>) {
         let ident = ident.as_ref();
-        self.calculator.backward(self, ident, F::default_adjoin());
+        let adjoin = F::default_adjoin(self.forward(ident));
+        self.calculator.backward(self, ident, adjoin);
     }
 
     fn assert_ident_is_variable(&self, ident: &Ident) {

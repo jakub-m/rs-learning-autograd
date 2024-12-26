@@ -99,6 +99,27 @@ mod tests {
         );
     }
 
+    #[test]
+    fn backward_add_mul() {
+        let eb = new_eb();
+        let a = eb.new_variable("a");
+        let b = eb.new_variable("b");
+        let c = eb.new_variable("c");
+        let y = a + b * c;
+
+        let [a, b, c, y] = [a, b, c, y].map(|p| p.ident());
+        let mut cb = ComputGraph::<DMatrixF32, NaOperAry1, NaOperAry2>::new(eb, &DMatrixCalculator);
+        cb.set_variable(&a, na::DMatrix::from_element(2, 2, 1.0_f32).into());
+        cb.set_variable(&b, na::DMatrix::from_element(2, 2, 2.0_f32).into());
+        cb.set_variable(&c, na::DMatrix::from_element(2, 2, 3.0_f32).into());
+        cb.forward(&y);
+        cb.backward(&y);
+
+        assert_eq!(cb.adjoin(&a).m(), &na::DMatrix::from_element(2, 2, 99.0));
+        assert_eq!(cb.adjoin(&b).m(), &na::DMatrix::from_element(2, 2, 99.0));
+        assert_eq!(cb.adjoin(&c).m(), &na::DMatrix::from_element(2, 2, 99.0));
+    }
+
     fn new_eb() -> ExprBuilder<DMatrixF32, NaOperAry1, NaOperAry2> {
         ExprBuilder::new()
     }
