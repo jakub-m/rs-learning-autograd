@@ -27,12 +27,23 @@ impl Calculator<NaOperAry1, NaOperAry2, DMatrixF32> for DMatrixCalculator {
                     }
                     DMatrixF32::new(primal)
                 }
+                NaOperAry1::PowI(exp) => {
+                    let primal = cg.forward(&a);
+                    let mut primal = primal.m().clone();
+                    primal.apply(|v| *v = v.powi(exp as i32));
+                    DMatrixF32::new(primal)
+                }
             },
             Node::Ary2(op, a, b) => match op {
                 NaOperAry2::Add => {
                     let a = cg.forward(&a);
                     let b = cg.forward(&b);
                     DMatrixF32::new(a.m() + b.m())
+                }
+                NaOperAry2::Sub => {
+                    let a = cg.forward(&a);
+                    let b = cg.forward(&b);
+                    DMatrixF32::new(a.m() - b.m())
                 }
                 NaOperAry2::MulComp => {
                     let a = cg.forward(&a);
@@ -63,11 +74,22 @@ impl Calculator<NaOperAry1, NaOperAry2, DMatrixF32> for DMatrixCalculator {
                     }
                     self.backward(cg, &v1, &DMatrixF32::new(adjoin.m().component_mul(&m)));
                 }
+                NaOperAry1::PowI(b) => {
+                    let a = cg.primal(&v1);
+                    let mut a = a.m().clone();
+                    a.apply(|v| *v = v.powi(b - 1));
+                    let a_ad = (b as f32) * a;
+                    self.backward(cg, &v1, &DMatrixF32::new(adjoin.m().component_mul(&a_ad)));
+                }
             },
             Node::Ary2(op, v1, v2) => match op {
                 NaOperAry2::Add => {
                     self.backward(cg, &v1, adjoin);
                     self.backward(cg, &v2, adjoin);
+                }
+                NaOperAry2::Sub => {
+                    self.backward(cg, &v1, adjoin);
+                    self.backward(cg, &v2, &DMatrixF32::new(adjoin.m() * -1.0));
                 }
                 NaOperAry2::MulComp => {
                     let v1_p = cg.primal(&v1);

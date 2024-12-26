@@ -207,10 +207,10 @@ fn test_relu_to_sin() {
             cg.reset_variable(&params[i], param_values[i]);
         }
 
-        let mut n_steps = 0_usize;
+        let mut x_count = 0_usize;
         let mut tot_loss = 0_f32;
         for x_inp in input_range.into_iter() {
-            n_steps += 1;
+            x_count += 1;
             cg.reset_primals_keep_variables();
             cg.reset_variable(&x, x_inp);
             cg.reset_variable(&t, target_poly(x_inp));
@@ -220,10 +220,10 @@ fn test_relu_to_sin() {
 
         let adjoins: Vec<f32> = params
             .iter()
-            .map(|p| cg.adjoin(&p) / (n_steps as f32))
+            .map(|p| cg.adjoin(&p) / (x_count as f32))
             .collect();
 
-        tot_loss = tot_loss / (n_steps as f32);
+        tot_loss = tot_loss / (x_count as f32);
         for i in 0..param_values.len() {
             param_values[i] = param_values[i] - adjoins[i] * learn_rate;
         }

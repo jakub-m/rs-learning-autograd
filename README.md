@@ -40,3 +40,4 @@ make marimo
 - Implement gradient descent with this autograd
 - Implement larger test cases (examples from YT and HF)
 - Train something
+- Figure that `(a-b)*(a-b)` are the same nodes, not two different ones. To do that, use hash of node, instead of incremental id.

@@ -7,8 +7,10 @@ use std::rc::Rc;
 
 #[derive(Debug, Clone, Copy)]
 pub enum NaOperAry1 {
-    //ReLU
+    /// ReLU
     Relu,
+    /// Power to integer.
+    PowI(i32),
 }
 
 impl Operator for NaOperAry1 {}
@@ -16,6 +18,7 @@ impl Operator for NaOperAry1 {}
 #[derive(Debug, Clone, Copy)]
 pub enum NaOperAry2 {
     Add,
+    Sub,
     // Element-wise multiplication.
     MulComp,
 }
@@ -25,7 +28,8 @@ impl Operator for NaOperAry2 {}
 impl fmt::Display for NaOperAry1 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let s = match self {
-            NaOperAry1::Relu => "relu",
+            NaOperAry1::Relu => "relu".to_owned(),
+            NaOperAry1::PowI(p) => format!("pow{}", p),
         };
         write!(f, "{}", s)
     }
@@ -35,6 +39,7 @@ impl fmt::Display for NaOperAry2 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let s = match self {
             NaOperAry2::Add => " + ",
+            NaOperAry2::Sub => " - ",
             NaOperAry2::MulComp => " .* ",
         };
         write!(f, "{}", s)
@@ -93,6 +98,11 @@ impl<'a> ExprDMatrix<'a> {
         let node = Node::Ary1(NaOperAry1::Relu, self.ident());
         self.register_and_continue_expr(node)
     }
+
+    pub fn powi(&self, p: i32) -> ExprDMatrix<'a> {
+        let node = Node::Ary1(NaOperAry1::PowI(p), self.ident());
+        self.register_and_continue_expr(node)
+    }
 }
 
 impl<'a> ops::Add for ExprDMatrix<'a> {
@@ -100,6 +110,15 @@ impl<'a> ops::Add for ExprDMatrix<'a> {
 
     fn add(self, rhs: Self) -> Self::Output {
         let node = Node::Ary2(NaOperAry2::Add, self.ident(), rhs.ident());
+        self.register_and_continue_expr(node)
+    }
+}
+
+impl<'a> ops::Sub for ExprDMatrix<'a> {
+    type Output = ExprDMatrix<'a>;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        let node = Node::Ary2(NaOperAry2::Sub, self.ident(), rhs.ident());
         self.register_and_continue_expr(node)
     }
 }

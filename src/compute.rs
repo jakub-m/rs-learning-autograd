@@ -1,6 +1,6 @@
 //! This module abstracts how to compute values out of nodes.
 
-use std::{any::Any, cell::RefCell, collections::BTreeMap, default};
+use std::{cell::RefCell, collections::BTreeMap};
 
 use crate::core_syntax::{ComputValue, Expr, ExprBuilder, Ident, Node, Operator, VariableNameId};
 
@@ -60,6 +60,7 @@ where
     }
 
     /// Set variable once, panic if the variable was already set.
+    // TODO: Consider changing value: F to Into<F>
     pub fn set_variable(&mut self, ident: &dyn AsRef<Ident>, value: F) {
         let ident = ident.as_ref();
         if let Some(old) = self.reset_variable(ident, value) {
