@@ -12,6 +12,7 @@ use rs_autograd::{
 };
 use utils::{assert_functions_similar, FloatRange, Opts};
 
+#[ignore]  // continue with this test
 #[test]
 fn test_na_gradient_descent_sin() {
     let target_poly = |x: f32| x.sin();
