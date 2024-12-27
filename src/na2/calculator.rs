@@ -96,17 +96,8 @@ impl Calculator<NaOperAry1, NaOperAry2, MatrixF32> for MatrixCalculator {
             Node::Ary1(op, v1) => match op {
                 NaOperAry1::Relu => {
                     let primal = cg.primal(&v1);
-                    let b = match primal {
-                        MatrixF32::M(m) => {
-                            // Mutate the primal in-place (it's cloned), so now it becomes an adjoin.
-                            let m = m.as_ref().clone();
-                            let m = m.backward_relu();
-                            MatrixF32::new_m(m)
-                        }
-                        MatrixF32::V(v) => MatrixF32::V(v.backward_relu()),
-                    };
-                    let new_adjoin = adjoin * &b;
-                    self.backward(cg, &v1, &new_adjoin)
+                    let b = primal.backward_relu();
+                    self.backward(cg, &v1, &(adjoin * &b))
                 }
                 NaOperAry1::PowI(b) => {
                     todo!();
@@ -149,21 +140,37 @@ impl Calculator<NaOperAry1, NaOperAry2, MatrixF32> for MatrixCalculator {
 }
 
 trait Relu {
-    fn relu(self) -> Self;
-    fn backward_relu(self) -> Self;
+    fn relu(&self) -> Self;
+    fn backward_relu(&self) -> Self;
 }
 
-impl Relu for f32 {
-    fn relu(self) -> Self {
-        if self <= 0.0 {
-            0.0
-        } else {
-            self
+impl Relu for MatrixF32 {
+    fn relu(&self) -> Self {
+        match self {
+            MatrixF32::M(m) => MatrixF32::new_m(m.as_ref().relu()),
+            MatrixF32::V(v) => MatrixF32::V(v.relu()),
         }
     }
 
-    fn backward_relu(self) -> Self {
-        if self <= 0.0 {
+    fn backward_relu(&self) -> Self {
+        match self {
+            MatrixF32::M(m) => MatrixF32::new_m(m.as_ref().backward_relu()),
+            MatrixF32::V(v) => MatrixF32::V(v.backward_relu()),
+        }
+    }
+}
+
+impl Relu for f32 {
+    fn relu(&self) -> Self {
+        if *self <= 0.0 {
+            0.0
+        } else {
+            *self
+        }
+    }
+
+    fn backward_relu(&self) -> Self {
+        if *self <= 0.0 {
             0.0
         } else {
             1.0
@@ -172,18 +179,20 @@ impl Relu for f32 {
 }
 
 impl Relu for NaMatrixDynF32 {
-    fn relu(mut self) -> Self {
-        for e in self.iter_mut() {
+    fn relu(&self) -> Self {
+        let mut m = self.clone();
+        for e in m.iter_mut() {
             *e = e.relu()
         }
-        self
+        m
     }
 
-    fn backward_relu(mut self) -> Self {
-        for e in self.iter_mut() {
+    fn backward_relu(&self) -> Self {
+        let mut m = self.clone();
+        for e in m.iter_mut() {
             *e = e.backward_relu();
         }
-        self
+        m
     }
 }
 
