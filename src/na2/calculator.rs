@@ -217,6 +217,24 @@ mod tests {
         );
     }
 
+    #[test]
+    fn forward_add_sub_mul_mixed() {
+        let eb = new_eb();
+        let m = eb.new_variable("m");
+        let v = eb.new_variable("v");
+        let y = (m * (v + v) - v) * m;
+        let [m, v, y] = [m, v, y].map(|p| p.ident());
+        let mut cb = ComputGraph::<MatrixF32, NaOperAry1, NaOperAry2>::new(eb, &MatrixCalculator);
+        cb.set_variable(
+            &m,
+            na::DMatrix::from_vec(2, 2, vec![3.0, 3.0, 3.0, 3.0]).into(),
+        );
+        cb.set_variable(&v, 2.0.into());
+        let y = cb.forward(&y);
+        let expected = (3.0 * (2.0 + 2.0) - 2.0) * 3.0;
+        assert_eq!(y.m(), Some(&na::DMatrix::from_element(2, 2, expected)));
+    }
+
     //    #[test]
     //    fn backward_add_mul() {
     //        let eb = new_eb();

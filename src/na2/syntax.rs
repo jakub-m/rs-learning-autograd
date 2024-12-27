@@ -81,6 +81,12 @@ impl From<na::Matrix<f32, na::Dyn, na::Dyn, VecStorage<f32, na::Dyn, na::Dyn>>> 
     }
 }
 
+impl From<f32> for MatrixF32 {
+    fn from(value: f32) -> Self {
+        MatrixF32::V(value)
+    }
+}
+
 impl ComputValue for MatrixF32 {}
 
 impl ops::Add for MatrixF32 {
