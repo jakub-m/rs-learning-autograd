@@ -30,14 +30,7 @@ impl Calculator<NaOperAry1, NaOperAry2, MatrixF32> for MatrixCalculator {
                 }
                 NaOperAry1::PowI(exp) => {
                     let primal = cg.forward(&a);
-                    match primal {
-                        MatrixF32::M(m) => {
-                            let mut m = m.as_ref().clone();
-                            m.apply(|v| *v = v.powi(exp as i32));
-                            MatrixF32::new_m(m)
-                        }
-                        MatrixF32::V(v) => MatrixF32::V(v.powi(exp)),
-                    }
+                    primal.powi(exp)
                 }
             },
             Node::Ary2(op, a, b) => match op {
@@ -99,28 +92,23 @@ impl Calculator<NaOperAry1, NaOperAry2, MatrixF32> for MatrixCalculator {
                     let b = primal.backward_relu();
                     self.backward(cg, &v1, &(adjoin * &b))
                 }
-                NaOperAry1::PowI(b) => {
-                    todo!();
-                    //let a = cg.primal(&v1);
-                    //let mut a = a.m().clone();
-                    //a.apply(|v| *v = v.powi(b - 1));
-                    //let a_ad = (b as f32) * a;
-                    //self.backward(cg, &v1, &DMatrixF32::new(adjoin.m().component_mul(&a_ad)));
+                NaOperAry1::PowI(p) => {
+                    let a = cg.primal(&v1);
+                    let a = a.backward_powi(p);
+                    let new_adjoin = &a * adjoin;
+                    self.backward(cg, &v1, &new_adjoin);
                 }
             },
             Node::Ary2(op, v1, v2) => match op {
                 NaOperAry2::Add => {
-                    todo!();
-                    //self.backward(cg, &v1, adjoin);
-                    //self.backward(cg, &v2, adjoin);
+                    self.backward(cg, &v1, adjoin);
+                    self.backward(cg, &v2, adjoin);
                 }
                 NaOperAry2::Sub => {
-                    todo!();
-                    //self.backward(cg, &v1, adjoin);
-                    //self.backward(cg, &v2, &DMatrixF32::new(adjoin.m() * -1.0));
+                    self.backward(cg, &v1, adjoin);
+                    self.backward(cg, &v2, &(adjoin * &MatrixF32::V(-1.0)));
                 }
                 NaOperAry2::MulComp => {
-                    todo!();
                     //let v1_p = cg.primal(&v1);
                     //let v2_p = cg.primal(&v2);
                     //self.backward(
@@ -133,6 +121,7 @@ impl Calculator<NaOperAry1, NaOperAry2, MatrixF32> for MatrixCalculator {
                     //    &v2,
                     //    &DMatrixF32::new(adjoin.m().component_mul(v1_p.m())),
                     //);
+                    todo!();
                 }
             },
         }
@@ -193,6 +182,51 @@ impl Relu for NaMatrixDynF32 {
             *e = e.backward_relu();
         }
         m
+    }
+}
+
+trait PowI {
+    fn powi(&self, p: i32) -> Self;
+    fn backward_powi(&self, p: i32) -> Self;
+}
+
+impl PowI for MatrixF32 {
+    fn powi(&self, p: i32) -> Self {
+        match self {
+            MatrixF32::M(m) => MatrixF32::new_m(PowI::powi(m.as_ref(), p)),
+            MatrixF32::V(v) => MatrixF32::V(PowI::powi(v, p)),
+        }
+    }
+
+    fn backward_powi(&self, p: i32) -> Self {
+        match self {
+            MatrixF32::M(m) => MatrixF32::new_m(PowI::backward_powi(m.as_ref(), p)),
+            MatrixF32::V(v) => MatrixF32::V(PowI::backward_powi(v, p)),
+        }
+    }
+}
+
+impl PowI for f32 {
+    fn powi(&self, p: i32) -> Self {
+        f32::powi(*self, p)
+    }
+
+    fn backward_powi(&self, p: i32) -> Self {
+        (p as f32) * PowI::powi(self, p - 1)
+    }
+}
+
+impl PowI for NaMatrixDynF32 {
+    fn powi(&self, p: i32) -> Self {
+        let mut m = self.clone();
+        m.apply(|v| *v = PowI::powi(v, p));
+        m
+    }
+
+    fn backward_powi(&self, p: i32) -> Self {
+        let mut a = self.clone();
+        a.apply(|v| *v = v.backward_powi(p));
+        a
     }
 }
 
