@@ -72,10 +72,16 @@ impl Calculator<NaOperAry1, NaOperAry2, MatrixF32> for MatrixCalculator {
                     }
                 }
                 NaOperAry2::MulComp => {
-                    todo!();
-                    //let a = cg.forward(&a);
-                    //let b = cg.forward(&b);
-                    //DMatrixF32::new(a.m().component_mul(b.m()))
+                    let a = cg.forward(&a);
+                    let b = cg.forward(&b);
+                    match (a, b) {
+                        (MatrixF32::M(m1), MatrixF32::M(m2)) => {
+                            MatrixF32::new_m(m1.as_ref().component_mul(m2.as_ref()))
+                        }
+                        (MatrixF32::M(m), MatrixF32::V(v)) => MatrixF32::new_m(m.as_ref() * v),
+                        (MatrixF32::V(v), MatrixF32::M(m)) => MatrixF32::new_m(m.as_ref() * v),
+                        (MatrixF32::V(v1), MatrixF32::V(v2)) => MatrixF32::V(v1 * v2),
+                    }
                 }
             },
         }
@@ -166,51 +172,51 @@ impl Relu for NaMatrixDynF32 {
 }
 #[cfg(test)]
 mod tests {
-    //    use super::MatrixCalculator;
-    //    use crate::{
-    //        compute::ComputGraph,
-    //        core_syntax::ExprBuilder,
-    //        na::syntax::{DMatrixF32, NaOperAry1, NaOperAry2},
-    //    };
-    //    use nalgebra as na;
-    //
-    //    #[test]
-    //    fn forward_add_mul() {
-    //        let eb = new_eb();
-    //        let a = eb.new_variable("a");
-    //        let b = eb.new_variable("b");
-    //        let c = eb.new_variable("c");
-    //        let y = a + b * c;
-    //        assert_eq!("(a + (b .* c))", format!("{}", y));
-    //
-    //        let [a, b, c, y] = [a, b, c, y].map(|p| p.ident());
-    //        let mut cb = ComputGraph::<DMatrixF32, NaOperAry1, NaOperAry2>::new(eb, &DMatrixCalculator);
-    //        cb.set_variable(&a, na::DMatrix::from_element(2, 2, 1.0_f32).into());
-    //        cb.set_variable(&b, na::DMatrix::from_element(2, 2, 2.0_f32).into());
-    //        cb.set_variable(&c, na::DMatrix::from_element(2, 2, 3.0_f32).into());
-    //        let y = cb.forward(&y);
-    //        assert_eq!(y.m(), &na::DMatrix::from_element(2, 2, 7.0));
-    //    }
-    //
-    //    #[test]
-    //    fn forward_relu() {
-    //        let eb = new_eb();
-    //        let a = eb.new_variable("a");
-    //        let y = a.relu();
-    //
-    //        let [a, y] = [a, y].map(|p| p.ident());
-    //        let mut cb = ComputGraph::<DMatrixF32, NaOperAry1, NaOperAry2>::new(eb, &DMatrixCalculator);
-    //        cb.set_variable(
-    //            &a,
-    //            na::DMatrix::from_vec(2, 2, vec![-1.0, -3.0, 0.0, 42.0]).into(),
-    //        );
-    //        let y = cb.forward(&y);
-    //        assert_eq!(
-    //            y.m(),
-    //            &na::DMatrix::from_vec(2, 2, vec![0.0, 0.0, 0.0, 42.0])
-    //        );
-    //    }
-    //
+    use super::MatrixCalculator;
+    use crate::{
+        compute::ComputGraph,
+        core_syntax::ExprBuilder,
+        na2::syntax::{MatrixF32, NaOperAry1, NaOperAry2},
+    };
+    use nalgebra as na;
+
+    #[test]
+    fn forward_add_mul() {
+        let eb = new_eb();
+        let a = eb.new_variable("a");
+        let b = eb.new_variable("b");
+        let c = eb.new_variable("c");
+        let y = a + b * c;
+        assert_eq!("(a + (b .* c))", format!("{}", y));
+
+        let [a, b, c, y] = [a, b, c, y].map(|p| p.ident());
+        let mut cb = ComputGraph::<MatrixF32, NaOperAry1, NaOperAry2>::new(eb, &MatrixCalculator);
+        cb.set_variable(&a, na::DMatrix::from_element(2, 2, 1.0_f32).into());
+        cb.set_variable(&b, na::DMatrix::from_element(2, 2, 2.0_f32).into());
+        cb.set_variable(&c, na::DMatrix::from_element(2, 2, 3.0_f32).into());
+        let y = cb.forward(&y);
+        assert_eq!(y.m(), Some(&na::DMatrix::from_element(2, 2, 7.0)));
+    }
+
+    #[test]
+    fn forward_relu() {
+        let eb = new_eb();
+        let a = eb.new_variable("a");
+        let y = a.relu();
+
+        let [a, y] = [a, y].map(|p| p.ident());
+        let mut cb = ComputGraph::<MatrixF32, NaOperAry1, NaOperAry2>::new(eb, &MatrixCalculator);
+        cb.set_variable(
+            &a,
+            na::DMatrix::from_vec(2, 2, vec![-1.0, -3.0, 0.0, 42.0]).into(),
+        );
+        let y = cb.forward(&y);
+        assert_eq!(
+            y.m(),
+            Some(&na::DMatrix::from_vec(2, 2, vec![0.0, 0.0, 0.0, 42.0]))
+        );
+    }
+
     //    #[test]
     //    fn backward_add_mul() {
     //        let eb = new_eb();
@@ -254,7 +260,7 @@ mod tests {
     //        );
     //    }
     //
-    //    fn new_eb() -> ExprBuilder<DMatrixF32, NaOperAry1, NaOperAry2> {
-    //        ExprBuilder::new()
-    //    }
+    fn new_eb() -> ExprBuilder<MatrixF32, NaOperAry1, NaOperAry2> {
+        ExprBuilder::new()
+    }
 }
