@@ -1,3 +1,5 @@
+use std::ops;
+
 use super::syntax::{MatrixF32, NaOperAry1, NaOperAry2};
 use crate::{
     compute::{Calculator, ComputGraph},
@@ -74,14 +76,7 @@ impl Calculator<NaOperAry1, NaOperAry2, MatrixF32> for MatrixCalculator {
                 NaOperAry2::MulComp => {
                     let a = cg.forward(&a);
                     let b = cg.forward(&b);
-                    match (a, b) {
-                        (MatrixF32::M(m1), MatrixF32::M(m2)) => {
-                            MatrixF32::new_m(m1.as_ref().component_mul(m2.as_ref()))
-                        }
-                        (MatrixF32::M(m), MatrixF32::V(v)) => MatrixF32::new_m(m.as_ref() * v),
-                        (MatrixF32::V(v), MatrixF32::M(m)) => MatrixF32::new_m(m.as_ref() * v),
-                        (MatrixF32::V(v1), MatrixF32::V(v2)) => MatrixF32::V(v1 * v2),
-                    }
+                    &a * &b
                 }
             },
         }
@@ -100,13 +95,18 @@ impl Calculator<NaOperAry1, NaOperAry2, MatrixF32> for MatrixCalculator {
             Node::Variable(_) => (),
             Node::Ary1(op, v1) => match op {
                 NaOperAry1::Relu => {
-                    todo!();
-                    //// Mutate the primal in-place (it's cloned), so now it becomes an adjoin.
-                    //let mut m = cg.primal(&v1).m().clone();
-                    //for e in m.iter_mut() {
-                    //    *e = if *e <= 0.0 { 0.0 } else { 1.0 };
-                    //}
-                    //self.backward(cg, &v1, &DMatrixF32::new(adjoin.m().component_mul(&m)));
+                    let primal = cg.primal(&v1);
+                    let b = match primal {
+                        MatrixF32::M(m) => {
+                            // Mutate the primal in-place (it's cloned), so now it becomes an adjoin.
+                            let m = m.as_ref().clone();
+                            let m = m.backward_relu();
+                            MatrixF32::new_m(m)
+                        }
+                        MatrixF32::V(v) => MatrixF32::V(v.backward_relu()),
+                    };
+                    let new_adjoin = adjoin * &b;
+                    self.backward(cg, &v1, &new_adjoin)
                 }
                 NaOperAry1::PowI(b) => {
                     todo!();
@@ -150,6 +150,7 @@ impl Calculator<NaOperAry1, NaOperAry2, MatrixF32> for MatrixCalculator {
 
 trait Relu {
     fn relu(self) -> Self;
+    fn backward_relu(self) -> Self;
 }
 
 impl Relu for f32 {
@@ -158,6 +159,14 @@ impl Relu for f32 {
             0.0
         } else {
             self
+        }
+    }
+
+    fn backward_relu(self) -> Self {
+        if self <= 0.0 {
+            0.0
+        } else {
+            1.0
         }
     }
 }
@@ -169,7 +178,32 @@ impl Relu for NaMatrixDynF32 {
         }
         self
     }
+
+    fn backward_relu(mut self) -> Self {
+        for e in self.iter_mut() {
+            *e = e.backward_relu();
+        }
+        self
+    }
 }
+
+/// Element-wise multiplication.
+impl ops::Mul for &MatrixF32 {
+    type Output = MatrixF32;
+
+    fn mul(self, b: Self) -> Self::Output {
+        let a = self;
+        match (a, b) {
+            (MatrixF32::M(m1), MatrixF32::M(m2)) => {
+                MatrixF32::new_m(m1.as_ref().component_mul(m2.as_ref()))
+            }
+            (MatrixF32::M(m), MatrixF32::V(v)) => MatrixF32::new_m(m.as_ref() * (*v)),
+            (MatrixF32::V(v), MatrixF32::M(m)) => MatrixF32::new_m(m.as_ref() * (*v)),
+            (MatrixF32::V(v1), MatrixF32::V(v2)) => MatrixF32::V(v1 * v2),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::MatrixCalculator;
