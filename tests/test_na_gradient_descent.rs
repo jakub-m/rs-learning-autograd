@@ -35,12 +35,12 @@ fn test_na_gradient_descent_sin() {
     let mut p1_values =
         na::DMatrix::from_iterator(n_params, 1, (0..n_params).map(|_| rng.gen_range(-3.0..3.0)));
 
-    let learning_rate: f32 = 0.001;
-    let n_epochs = 1000;
+    let learning_rate: f32 = 0.01;
+    let n_epochs = 2;
     for i in 0..n_epochs {
         cg.reset();
-        cg.reset_variable(&p0, p0_values.clone().into());
-        cg.reset_variable(&p1, p1_values.clone().into());
+        cg.set_variable(&p0, p0_values.clone().into());
+        cg.set_variable(&p1, p1_values.clone().into());
 
         let mut x_count = 0;
         let mut total_loss = 0.0;
@@ -67,7 +67,22 @@ fn test_na_gradient_descent_sin() {
         println!("total_loss {}", total_loss);
     }
 
-    todo!("implement this test!");
+    let mut f2 = |x_inp: f32| {
+        cg.reset_primals_keep_variables();
+        cg.reset_variable(
+            &x,
+            DMatrixF32::new(na::DMatrix::from_element(n_params, 1, x_inp)),
+        );
+        cg.forward(&y).m().sum()
+    };
+    assert_functions_similar(
+        target_poly,
+        &mut f2,
+        &[
+            Opts::TestName("test_na_gradient_descent_sin"),
+            Opts::InputRange(input_range),
+        ],
+    );
 }
 
 fn new_eb() -> ExprBuilder<DMatrixF32, NaOperAry1, NaOperAry2> {

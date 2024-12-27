@@ -232,14 +232,14 @@ fn test_relu_to_sin() {
         println!("\ttot_loss {}", tot_loss);
     }
 
-    let mut df = |x_inp: f32| {
+    let mut f2 = |x_inp: f32| {
         cg.reset_primals_keep_variables();
         cg.reset_variable(&x, x_inp);
         cg.forward(&y)
     };
     assert_functions_similar(
         target_poly,
-        &mut df,
+        &mut f2,
         &[
             Opts::InputRange(input_range),
             Opts::TestName("test_relu_to_sin.csv"),
