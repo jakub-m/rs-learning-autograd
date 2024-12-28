@@ -20,10 +20,13 @@ A learning exercise to understand automatic gradient, and to exercise Rust. The 
 - [Hugging Face: What's Automatic Differentiation?](https://huggingface.co/blog/andmholm/what-is-automatic-differentiation)
 - [YT: What is Automatic Differentiation?](https://www.youtube.com/watch?v=wG_nF1awSSY)
 - [Demystifying AutoGrad in Machine Learning](https://medium.com/@weidagang/demystifying-autograd-in-machine-learning-eb7d5c875ff2)
+- [Max pooling and back-propagation](https://datascience.stackexchange.com/a/11703)
 
-### Derivatives
+### CNN
 
-- [Max pooling and backprop](https://datascience.stackexchange.com/a/11703)
+- [Developing a simple CNN for MNIST](https://medium.com/@jaredmcmullen1/developing-a-simple-cnn-for-mnist-f98c38f0d38d) - 7 layers
+- [MNIST: Keras Simple CNN (99.6%)](https://medium.com/@BrendanArtley/mnist-keras-simple-cnn-99-6-731b624aee7f) - 20 layers
+- [Understanding the Convolutional Filter Operation in CNN’s.](https://medium.com/advanced-deep-learning/cnn-operation-with-2-kernels-resulting-in-2-feature-mapsunderstanding-the-convolutional-filter-c4aad26cf32)
 
 ## Using [marimo][ref_marimo] to view test outputs
 
@@ -38,7 +41,7 @@ make marimo
 
 ## Possible TODOs
 
-- Add f32 to matrix type
-- Implement larger test cases (examples from YT and HF)
-- Train something
 - Figure that `(a-b)*(a-b)` are the same nodes, not two different ones. To do that, use hash of node, instead of incremental id.
+- Train on multiple CPUs at once
+- Train on GPU
+- Train something
