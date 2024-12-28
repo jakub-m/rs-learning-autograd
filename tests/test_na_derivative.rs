@@ -3,7 +3,7 @@ use nalgebra as na;
 use rs_autograd::{
     compute::ComputGraph,
     core_syntax::ExprBuilder,
-    na2::{
+    na::{
         calculator::MatrixCalculator,
         syntax::{MatrixF32, NaOperAry1, NaOperAry2},
     },

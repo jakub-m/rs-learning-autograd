@@ -255,7 +255,7 @@ mod tests {
     use crate::{
         compute::ComputGraph,
         core_syntax::ExprBuilder,
-        na2::syntax::{MatrixF32, NaOperAry1, NaOperAry2},
+        na::syntax::{MatrixF32, NaOperAry1, NaOperAry2},
     };
     use nalgebra as na;
 

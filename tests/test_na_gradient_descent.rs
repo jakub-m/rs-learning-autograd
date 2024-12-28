@@ -5,7 +5,7 @@ use rand::{Rng, SeedableRng};
 use rs_autograd::{
     compute::ComputGraph,
     core_syntax::ExprBuilder,
-    na2::{
+    na::{
         calculator::MatrixCalculator,
         syntax::{MatrixF32, NaOperAry1, NaOperAry2},
     },
