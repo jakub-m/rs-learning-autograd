@@ -11,6 +11,7 @@ A learning exercise to understand automatic gradient, and to exercise Rust. The 
 - You can have optional arguments in a function with `&[Opts]`, where `Opts` is an enum.
 - Fitting parameters of a polynomial with a gradient descent is hard, possibly (my naive interpretation) because small
   changes in the parameters can cause a large change at the output.
+- Vector operations with `nalgebra` are (unsurprisingly) orders of magnitude faster than a primitive loop.
 
 ## Materials
 
