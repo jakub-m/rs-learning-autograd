@@ -50,6 +50,7 @@ make marimo
 # Possible TODOs
 
 - Figure that `(a-b)*(a-b)` are the same nodes, not two different ones. To do that, use hash of node, instead of incremental id.
+- Train CNN recognizing single letter (like R letter).
+  - Implement conv2d operation. This requires implementing tensors (3d at least). Should switch to narray?
 - Train on multiple CPUs at once
 - Train on GPU
-- Train something
