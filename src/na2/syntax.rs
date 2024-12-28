@@ -71,24 +71,11 @@ impl MatrixF32 {
         }
     }
 
-    /// If the underlying value is a matrix but the matrix has all the fields of same value, then return that
-    /// field as V.
     pub fn v(&self) -> Option<f32> {
         match self {
-            MatrixF32::M(m) => self.get_unique_matrix_value(m.as_ref()),
+            MatrixF32::M(_) => None,
             MatrixF32::V(v) => Some(*v),
         }
-    }
-
-    // TODO is this even correct?
-    fn get_unique_matrix_value(&self, m: &DMatrix<f32>) -> Option<f32> {
-        let mut it = m.iter();
-        if let Some(first) = it.next() {
-            if it.all(|value| value == first) {
-                return Some(*first);
-            }
-        }
-        None
     }
 }
 

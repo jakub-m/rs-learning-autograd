@@ -35,12 +35,11 @@ fn sum_relu_func() {
     let mut cg = new_cb(eb);
     let mut df = |x_inp: f32| {
         cg.reset();
-        dbg!(x_inp);
         cg.set_variable(&x, MatrixF32::V(x_inp));
 
         cg.set_variable(
             &p0,
-            MatrixF32::new_m(na::DMatrix::from_vec(3, 1, vec![0.0, 2.0, 4.0])),
+            MatrixF32::new_m(na::DMatrix::from_vec(3, 1, vec![0.0, 2.0, 3.9])),
         );
         cg.set_variable(
             &p1,
@@ -50,16 +49,9 @@ fn sum_relu_func() {
         cg.forward(&y);
         cg.backward(&y);
 
-        dbg!(cg.adjoin(&y));
-        //dbg!(cg.adjoin(&v0));
-        //dbg!(cg.adjoin(&v1));
-        dbg!(cg.adjoin(&x));
-
-        // TODO explain this sum here
-        let ad = cg.adjoin(&x).m().unwrap().sum();
-        //let ad = cg.adjoin(&x).v().unwrap();
-        dbg!("final adjoin", ad);
-        ad
+        // return sum and not .v(), since the node after m is a matrix, not single value, and x contributes to
+        // each field of that matrix.
+        cg.adjoin(&x).m().unwrap().sum()
     };
 
     assert_function_and_derivative_similar(

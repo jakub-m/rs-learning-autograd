@@ -89,7 +89,6 @@ impl Calculator<NaOperAry1, NaOperAry2, MatrixF32> for MatrixCalculator {
         ident: &Ident,
         adjoin: &MatrixF32,
     ) {
-        dbg!("add adjoin", &ident, &adjoin, cg.get_name(&ident));
         // TODO adjust adjoin, when adjoin is V and variable is M, then adjoin should be M as well.
         cg.add_adjoin(ident, adjoin);
         let node = cg.get_node(ident);
@@ -100,15 +99,6 @@ impl Calculator<NaOperAry1, NaOperAry2, MatrixF32> for MatrixCalculator {
                 NaOperAry1::Relu => {
                     let primal = cg.primal(&v1);
                     let b = primal.backward_relu();
-                    dbg!(
-                        "backward relu",
-                        cg.get_node(&v1),
-                        cg.get_name(&v1),
-                        &primal,
-                        &b,
-                        "adjoin from up",
-                        adjoin
-                    );
                     self.backward(cg, &v1, &(adjoin * &b))
                 }
                 NaOperAry1::PowI(p) => {
@@ -118,13 +108,6 @@ impl Calculator<NaOperAry1, NaOperAry2, MatrixF32> for MatrixCalculator {
                     self.backward(cg, &v1, &new_adjoin);
                 }
                 NaOperAry1::Sum => {
-                    dbg!(
-                        "backward sum (a)",
-                        cg.get_node(&v1),
-                        cg.get_name(&v1),
-                        "adjoin from up",
-                        adjoin
-                    );
                     self.backward(cg, &v1, adjoin);
                 }
             },
@@ -134,7 +117,6 @@ impl Calculator<NaOperAry1, NaOperAry2, MatrixF32> for MatrixCalculator {
                     self.backward(cg, &v2, adjoin);
                 }
                 NaOperAry2::Sub => {
-                    dbg!("backward sub", cg.get_name(&v1), cg.get_name(&v2), adjoin);
                     self.backward(cg, &v1, adjoin);
                     self.backward(cg, &v2, &(adjoin * &MatrixF32::V(-1.0)));
                 }
