@@ -88,6 +88,8 @@ impl Calculator<NaOperAry1, NaOperAry2, MatrixF32> for MatrixCalculator {
         ident: &Ident,
         adjoin: &MatrixF32,
     ) {
+        dbg!("add adjoin", &ident, &adjoin, cg.get_name(&ident));
+        // TODO adjust adjoin, when adjoin is V and variable is M, then adjoin should be M as well.
         cg.add_adjoin(ident, adjoin);
         let node = cg.get_node(ident);
         match node {
@@ -106,6 +108,13 @@ impl Calculator<NaOperAry1, NaOperAry2, MatrixF32> for MatrixCalculator {
                     self.backward(cg, &v1, &new_adjoin);
                 }
                 NaOperAry1::Sum => {
+                    dbg!(
+                        "sum node (a)",
+                        cg.get_node(&v1),
+                        cg.get_name(&v1),
+                        "adjoin from y",
+                        adjoin
+                    );
                     self.backward(cg, &v1, adjoin);
                 }
             },
@@ -414,9 +423,10 @@ mod tests {
             &a,
             na::DMatrix::from_vec(2, 2, vec![-1.0, 0.0, 1.0, 2.0]).into(),
         );
-        cb.forward(&y);
+        let actual_forward_sum = cb.forward(&y);
         cb.backward(&y);
 
+        assert_eq!(actual_forward_sum, MatrixF32::V(2.0));
         assert_eq!(
             cb.adjoin(&a),
             MatrixF32::new_m(na::DMatrix::from_element(2, 2, 1.0))
