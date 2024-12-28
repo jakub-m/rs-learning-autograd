@@ -39,7 +39,15 @@ make marimo
 
 [ref_marimo]: https://marimo.io/
 
-## Possible TODOs
+# How does it go?
+
+## Fitting sin curve
+
+30 ReLU curves quite fit a sin function (in [test_na_gradient_descent.rs](tests/test_na_gradient_descent.rs)):
+
+![img](docs/test_na_gradient_descent_sin__n_params_60_lr_0.0001_epochs_1000.png)
+
+# Possible TODOs
 
 - Figure that `(a-b)*(a-b)` are the same nodes, not two different ones. To do that, use hash of node, instead of incremental id.
 - Train on multiple CPUs at once

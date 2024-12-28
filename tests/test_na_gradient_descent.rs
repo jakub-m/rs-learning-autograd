@@ -29,15 +29,16 @@ fn test_na_gradient_descent_sin() {
     let [x, p0, p1, y, t, loss] = [x, p0, p1, y, t, loss].map(|p| p.ident());
     let mut cg = ComputGraph::<MatrixF32, _, _>::new(eb, &MatrixCalculator);
 
-    let mut rng = StdRng::seed_from_u64(42);
     let n_params: usize = 30;
+    let learning_rate: f32 = 0.0001;
+    let n_epochs = 1000;
+
+    let mut rng = StdRng::seed_from_u64(42);
     let mut p0_values =
         na::DMatrix::from_iterator(n_params, 1, (0..n_params).map(|_| rng.gen_range(-3.0..3.0)));
     let mut p1_values =
         na::DMatrix::from_iterator(n_params, 1, (0..n_params).map(|_| rng.gen_range(-3.0..3.0)));
 
-    let learning_rate: f32 = 0.0001;
-    let n_epochs = 1000;
     for _ in 0..n_epochs {
         cg.reset();
         cg.set_variable(&p0, p0_values.clone().into());
@@ -70,7 +71,15 @@ fn test_na_gradient_descent_sin() {
         target_poly,
         &mut f2,
         &[
-            Opts::TestName("test_na_gradient_descent_sin"),
+            Opts::TestName(
+                format!(
+                    "test_na_gradient_descent_sin__n_params_{}_lr_{}_epochs_{}",
+                    n_params * 2,
+                    learning_rate,
+                    n_epochs
+                )
+                .as_str(),
+            ),
             Opts::InputRange(input_range),
             Opts::MaxRms(0.1),
         ],
