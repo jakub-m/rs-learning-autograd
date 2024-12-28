@@ -38,15 +38,23 @@ def __(mo):
     return button_reload,
 
 
-@app.cell(hide_code=True)
+@app.cell
 def __(button_reload, filepath, mo, pd):
     button_reload
 
     df = pd.read_csv(filepath, sep="\t")
 
-    column_multiselect = mo.ui.multiselect(sorted(c for c in df.columns if c not in ["x", "i"]))
+    column_multiselect = mo.ui.multiselect(
+        options=sorted(c for c in df.columns if c not in ["x", "i"]),
+        value=[c for c in ["y1", "y2"] if c in df.columns],
+    )
     column_multiselect
     return column_multiselect, df
+
+
+@app.cell
+def __():
+    return
 
 
 @app.cell
@@ -54,7 +62,7 @@ def __(alt, button_reload, column_multiselect, df, filepath, mo, os):
     button_reload
 
     # For X axis choose either "x" or "i"
-    x_col_name = next(iter(set(df.columns) & set(["x", "i"])))
+    x_col_name = next(iter(c for c in ["x", "i"] if c in df.columns))
 
     df_long = df.melt(id_vars=[x_col_name], value_vars=column_multiselect.value)
     chart = alt.Chart(df_long, title=f"{filepath.absolute().relative_to(os.getcwd())}")

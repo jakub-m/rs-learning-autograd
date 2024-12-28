@@ -23,7 +23,7 @@ impl Calculator<NaOperAry1, NaOperAry2, MatrixF32> for MatrixCalculator {
             Node::Ary1(op, a) => match op {
                 NaOperAry1::Relu => {
                     let primal = cg.forward(&a);
-                    match primal {
+                    match &primal {
                         MatrixF32::M(m) => MatrixF32::new_m(m.as_ref().clone().relu()),
                         MatrixF32::V(v) => MatrixF32::V(v.relu()),
                     }
@@ -48,11 +48,11 @@ impl Calculator<NaOperAry1, NaOperAry2, MatrixF32> for MatrixCalculator {
                         (MatrixF32::M(m1), MatrixF32::M(m2)) => {
                             MatrixF32::new_m(m1.as_ref() + m2.as_ref())
                         }
-                        (MatrixF32::M(m), MatrixF32::V(v)) => {
-                            MatrixF32::new_m(m.as_ref().clone().add_scalar(v))
+                        (MatrixF32::M(m1), MatrixF32::V(v2)) => {
+                            MatrixF32::new_m(m1.as_ref().clone().add_scalar(v2))
                         }
-                        (MatrixF32::V(v), MatrixF32::M(m)) => {
-                            MatrixF32::new_m(m.as_ref().clone().add_scalar(v))
+                        (MatrixF32::V(v1), MatrixF32::M(m2)) => {
+                            MatrixF32::new_m(m2.as_ref().clone().add_scalar(v1))
                         }
                         (MatrixF32::V(v1), MatrixF32::V(v2)) => MatrixF32::V(v1 + v2),
                     }
@@ -64,11 +64,12 @@ impl Calculator<NaOperAry1, NaOperAry2, MatrixF32> for MatrixCalculator {
                         (MatrixF32::M(m1), MatrixF32::M(m2)) => {
                             MatrixF32::new_m(m1.as_ref() - m2.as_ref())
                         }
-                        (MatrixF32::M(m), MatrixF32::V(v)) => {
-                            MatrixF32::new_m(m.as_ref().clone().add_scalar(-v))
+                        (MatrixF32::M(m1), MatrixF32::V(v2)) => {
+                            MatrixF32::new_m(m1.as_ref().clone().add_scalar(-v2))
                         }
-                        (MatrixF32::V(v), MatrixF32::M(m)) => {
-                            MatrixF32::new_m(m.as_ref().clone().add_scalar(-v))
+                        (MatrixF32::V(v1), MatrixF32::M(m2)) => {
+                            let m1 = NaMatrixDynF32::from_element(m2.nrows(), m2.ncols(), v1);
+                            MatrixF32::new_m(m1 - m2.as_ref())
                         }
                         (MatrixF32::V(v1), MatrixF32::V(v2)) => MatrixF32::V(v1 - v2),
                     }
@@ -99,6 +100,15 @@ impl Calculator<NaOperAry1, NaOperAry2, MatrixF32> for MatrixCalculator {
                 NaOperAry1::Relu => {
                     let primal = cg.primal(&v1);
                     let b = primal.backward_relu();
+                    dbg!(
+                        "backward relu",
+                        cg.get_node(&v1),
+                        cg.get_name(&v1),
+                        &primal,
+                        &b,
+                        "adjoin from up",
+                        adjoin
+                    );
                     self.backward(cg, &v1, &(adjoin * &b))
                 }
                 NaOperAry1::PowI(p) => {
@@ -109,10 +119,10 @@ impl Calculator<NaOperAry1, NaOperAry2, MatrixF32> for MatrixCalculator {
                 }
                 NaOperAry1::Sum => {
                     dbg!(
-                        "sum node (a)",
+                        "backward sum (a)",
                         cg.get_node(&v1),
                         cg.get_name(&v1),
-                        "adjoin from y",
+                        "adjoin from up",
                         adjoin
                     );
                     self.backward(cg, &v1, adjoin);
@@ -124,6 +134,7 @@ impl Calculator<NaOperAry1, NaOperAry2, MatrixF32> for MatrixCalculator {
                     self.backward(cg, &v2, adjoin);
                 }
                 NaOperAry2::Sub => {
+                    dbg!("backward sub", cg.get_name(&v1), cg.get_name(&v2), adjoin);
                     self.backward(cg, &v1, adjoin);
                     self.backward(cg, &v2, &(adjoin * &MatrixF32::V(-1.0)));
                 }
@@ -159,24 +170,6 @@ impl Relu for MatrixF32 {
     }
 }
 
-impl Relu for f32 {
-    fn relu(&self) -> Self {
-        if *self <= 0.0 {
-            0.0
-        } else {
-            *self
-        }
-    }
-
-    fn backward_relu(&self) -> Self {
-        if *self <= 0.0 {
-            0.0
-        } else {
-            1.0
-        }
-    }
-}
-
 impl Relu for NaMatrixDynF32 {
     fn relu(&self) -> Self {
         let mut m = self.clone();
@@ -195,6 +188,23 @@ impl Relu for NaMatrixDynF32 {
     }
 }
 
+impl Relu for f32 {
+    fn relu(&self) -> Self {
+        if *self <= 0.0 {
+            0.0
+        } else {
+            *self
+        }
+    }
+
+    fn backward_relu(&self) -> Self {
+        if *self <= 0.0 {
+            0.0
+        } else {
+            1.0
+        }
+    }
+}
 trait PowI {
     fn powi(&self, p: i32) -> Self;
     fn backward_powi(&self, p: i32) -> Self;
@@ -263,10 +273,9 @@ mod tests {
     use crate::{
         compute::ComputGraph,
         core_syntax::ExprBuilder,
-        na::calculator::DMatrixCalculator,
         na2::syntax::{MatrixF32, NaOperAry1, NaOperAry2},
     };
-    use nalgebra::{self as na, DMatrix};
+    use nalgebra as na;
 
     #[test]
     fn forward_add_mul() {
