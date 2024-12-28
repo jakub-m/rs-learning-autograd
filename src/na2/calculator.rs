@@ -418,10 +418,7 @@ mod tests {
         cb.backward(&y);
 
         assert_eq!(actual_forward_sum, MatrixF32::V(2.0));
-        assert_eq!(
-            cb.adjoin(&a),
-            MatrixF32::new_m(na::DMatrix::from_element(2, 2, 1.0))
-        );
+        assert_eq!(cb.adjoin(&a), MatrixF32::V(1.0),);
     }
 
     fn new_eb() -> ExprBuilder<MatrixF32, NaOperAry1, NaOperAry2> {

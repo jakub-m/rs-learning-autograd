@@ -50,6 +50,7 @@ impl fmt::Display for NaOperAry2 {
     }
 }
 
+/// For all the practical purposes, V of value `v` can be treat as M with all the fields set to `v`.
 #[derive(Debug, Clone, PartialEq)]
 pub enum MatrixF32 {
     /// Matrix. Use [Rc] so `.clone` does not clone whole matrix, but only a reference to the matrix.
