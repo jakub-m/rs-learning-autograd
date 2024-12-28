@@ -32,6 +32,13 @@ impl Calculator<NaOperAry1, NaOperAry2, MatrixF32> for MatrixCalculator {
                     let primal = cg.forward(&a);
                     primal.powi(exp)
                 }
+                NaOperAry1::Sum => {
+                    let primal = cg.forward(&a);
+                    match primal {
+                        MatrixF32::M(m) => MatrixF32::V(m.as_ref().sum()),
+                        MatrixF32::V(_) => primal,
+                    }
+                }
             },
             Node::Ary2(op, a, b) => match op {
                 NaOperAry2::Add => {
@@ -97,6 +104,9 @@ impl Calculator<NaOperAry1, NaOperAry2, MatrixF32> for MatrixCalculator {
                     let a = a.backward_powi(p);
                     let new_adjoin = &a * adjoin;
                     self.backward(cg, &v1, &new_adjoin);
+                }
+                NaOperAry1::Sum => {
+                    self.backward(cg, &v1, adjoin);
                 }
             },
             Node::Ary2(op, v1, v2) => match op {
@@ -244,9 +254,10 @@ mod tests {
     use crate::{
         compute::ComputGraph,
         core_syntax::ExprBuilder,
+        na::calculator::DMatrixCalculator,
         na2::syntax::{MatrixF32, NaOperAry1, NaOperAry2},
     };
-    use nalgebra as na;
+    use nalgebra::{self as na, DMatrix};
 
     #[test]
     fn forward_add_mul() {
@@ -258,7 +269,7 @@ mod tests {
         assert_eq!("(a + (b .* c))", format!("{}", y));
 
         let [a, b, c, y] = [a, b, c, y].map(|p| p.ident());
-        let mut cb = ComputGraph::<MatrixF32, NaOperAry1, NaOperAry2>::new(eb, &MatrixCalculator);
+        let mut cb = new_cb(eb);
         cb.set_variable(&a, na::DMatrix::from_element(2, 2, 1.0_f32).into());
         cb.set_variable(&b, na::DMatrix::from_element(2, 2, 2.0_f32).into());
         cb.set_variable(&c, na::DMatrix::from_element(2, 2, 3.0_f32).into());
@@ -273,7 +284,7 @@ mod tests {
         let y = a.relu();
 
         let [a, y] = [a, y].map(|p| p.ident());
-        let mut cb = ComputGraph::<MatrixF32, NaOperAry1, NaOperAry2>::new(eb, &MatrixCalculator);
+        let mut cb = new_cb(eb);
         cb.set_variable(
             &a,
             na::DMatrix::from_vec(2, 2, vec![-1.0, -3.0, 0.0, 42.0]).into(),
@@ -292,7 +303,7 @@ mod tests {
         let v = eb.new_variable("v");
         let y = (m * (v + v) - v) * m;
         let [m, v, y] = [m, v, y].map(|p| p.ident());
-        let mut cb = ComputGraph::<MatrixF32, NaOperAry1, NaOperAry2>::new(eb, &MatrixCalculator);
+        let mut cb = new_cb(eb);
         cb.set_variable(
             &m,
             na::DMatrix::from_vec(2, 2, vec![3.0, 3.0, 3.0, 3.0]).into(),
@@ -312,7 +323,7 @@ mod tests {
         let y = a + b * c;
 
         let [a, b, c, y] = [a, b, c, y].map(|p| p.ident());
-        let mut cb = ComputGraph::<MatrixF32, NaOperAry1, NaOperAry2>::new(eb, &MatrixCalculator);
+        let mut cb = new_cb(eb);
         cb.set_variable(&a, na::DMatrix::from_element(2, 2, 1.0_f32).into());
         cb.set_variable(&b, na::DMatrix::from_element(2, 2, 2.0_f32).into());
         cb.set_variable(&c, na::DMatrix::from_element(2, 2, 3.0_f32).into());
@@ -341,7 +352,7 @@ mod tests {
         let y = a.relu();
 
         let [a, y] = [a, y].map(|p| p.ident());
-        let mut cb = ComputGraph::<MatrixF32, NaOperAry1, NaOperAry2>::new(eb, &MatrixCalculator);
+        let mut cb = new_cb(eb);
         cb.set_variable(
             &a,
             na::DMatrix::from_vec(2, 2, vec![-2.0, 0.0, 0.0, 2.0]).into(),
@@ -355,7 +366,70 @@ mod tests {
         );
     }
 
+    #[test]
+    fn backward_powi_m() {
+        let eb = new_eb();
+        let a = eb.new_variable("a");
+        let y = a.powi(2);
+
+        let [a, y] = [a, y].map(|p| p.ident());
+        let mut cb = new_cb(eb);
+        cb.set_variable(
+            &a,
+            na::DMatrix::from_vec(2, 2, vec![-1.0, 0.0, 1.0, 2.0]).into(),
+        );
+        cb.forward(&y);
+        cb.backward(&y);
+
+        assert_eq!(
+            cb.adjoin(&a).m(),
+            Some(&na::DMatrix::from_vec(2, 2, vec![-2.0, 0.0, 2.0, 4.0]))
+        );
+    }
+
+    #[test]
+    fn backward_powi_v() {
+        let eb = new_eb();
+        let a = eb.new_variable("a");
+        let y = a.powi(3);
+
+        let [a, y] = [a, y].map(|p| p.ident());
+        let mut cb = new_cb(eb);
+        cb.set_variable(&a, MatrixF32::V(3.0));
+        cb.forward(&y);
+        cb.backward(&y);
+
+        assert_eq!(cb.adjoin(&a).v(), Some(3.0 * 3.0_f32.powi(2)));
+    }
+
+    #[test]
+    fn backward_sum_m() {
+        let eb = new_eb();
+        let a = eb.new_variable("a");
+        let y = a.sum();
+
+        let [a, y] = [a, y].map(|p| p.ident());
+        let mut cb = new_cb(eb);
+        cb.set_variable(
+            &a,
+            na::DMatrix::from_vec(2, 2, vec![-1.0, 0.0, 1.0, 2.0]).into(),
+        );
+        cb.forward(&y);
+        cb.backward(&y);
+
+        assert_eq!(
+            cb.adjoin(&a),
+            MatrixF32::new_m(na::DMatrix::from_element(2, 2, 1.0))
+        );
+    }
+
     fn new_eb() -> ExprBuilder<MatrixF32, NaOperAry1, NaOperAry2> {
         ExprBuilder::new()
+    }
+
+    fn new_cb<'a>(
+        eb: ExprBuilder<MatrixF32, NaOperAry1, NaOperAry2>,
+    ) -> ComputGraph<'a, MatrixF32, NaOperAry1, NaOperAry2> {
+        ComputGraph::<MatrixF32, NaOperAry1, NaOperAry2>::new(eb, &MatrixCalculator)
     }
 }

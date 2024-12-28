@@ -11,6 +11,8 @@ pub enum NaOperAry1 {
     Relu,
     /// Power to integer.
     PowI(i32),
+    /// Add all the elements of the matrix and return a single value.
+    Sum,
 }
 
 impl Operator for NaOperAry1 {}
@@ -30,6 +32,7 @@ impl fmt::Display for NaOperAry1 {
         let s = match self {
             NaOperAry1::Relu => "relu".to_owned(),
             NaOperAry1::PowI(p) => format!("pow{}", p),
+            NaOperAry1::Sum => "sum".to_owned(),
         };
         write!(f, "{}", s)
     }
@@ -46,7 +49,7 @@ impl fmt::Display for NaOperAry2 {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum MatrixF32 {
     /// Matrix. Use [Rc] so `.clone` does not clone whole matrix, but only a reference to the matrix.
     M(Rc<na::DMatrix<f32>>),
@@ -137,6 +140,11 @@ impl<'a> ExprMatrix<'a> {
 
     pub fn powi(&self, p: i32) -> ExprMatrix<'a> {
         let node = Node::Ary1(NaOperAry1::PowI(p), self.ident());
+        self.register_and_continue_expr(node)
+    }
+
+    pub fn sum(&self) -> ExprMatrix<'a> {
+        let node = Node::Ary1(NaOperAry1::Sum, self.ident());
         self.register_and_continue_expr(node)
     }
 }
