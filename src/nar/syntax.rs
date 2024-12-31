@@ -79,15 +79,11 @@ impl MatrixF32 {
     }
 }
 
-//impl From<_na::Matrix<f32, _na::Dyn, _na::Dyn, _na::VecStorage<f32, _na::Dyn, _na::Dyn>>>
-//    for MatrixF32
-//{
-//    fn from(
-//        value: _na::Matrix<f32, _na::Dyn, _na::Dyn, _na::VecStorage<f32, _na::Dyn, _na::Dyn>>,
-//    ) -> Self {
-//        MatrixF32::M(Rc::new(value))
-//    }
-//}
+impl From<nd::ArrayBase<nd::OwnedRepr<f32>, nd::Dim<nd::IxDynImpl>>> for MatrixF32 {
+    fn from(value: nd::ArrayBase<nd::OwnedRepr<f32>, nd::Dim<nd::IxDynImpl>>) -> Self {
+        MatrixF32::new_m(value)
+    }
+}
 
 impl From<f32> for MatrixF32 {
     fn from(value: f32) -> Self {
