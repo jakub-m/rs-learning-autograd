@@ -12,6 +12,7 @@ A learning exercise to understand automatic gradient, and to exercise Rust. The 
 - Fitting parameters of a polynomial with a gradient descent is hard, possibly (my naive interpretation) because small
   changes in the parameters can cause a large change at the output.
 - Vector operations with `nalgebra` are (unsurprisingly) orders of magnitude faster than a primitive loop.
+- Rust type system starts when it comes to refactoring. If it compiles, it means that the refactoring is done.
 
 ## Materials
 
@@ -49,8 +50,8 @@ make marimo
 
 # Possible TODOs
 
-- Implement operations on tensors (not only 2d arrays) to support CNN.
 - Implement implicit parameters, not explicit arguments.
+- Implement operations on tensors (not only 2d arrays) to support CNN.
 - Figure that `(a-b)*(a-b)` are the same nodes, not two different ones. To do that, use hash of node, instead of incremental id.
 - Train CNN recognizing single letter (like R letter).
   - Implement conv2d operation. This requires implementing tensors (3d at least). Should switch to narray?
