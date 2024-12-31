@@ -29,16 +29,29 @@ where
     OP1: Operator,
     OP2: Operator,
 {
-    /// Primals are computed during a forward pass.
-    primals: RefCell<BTreeMap<Ident, F>>,
     /// Adjoins are updated during a backward pass.
     adjoins: RefCell<BTreeMap<Ident, F>>,
     /// Variable values that are saved and restored upon reset.
     saved_variables: RefCell<BTreeMap<Ident, F>>,
     /// Parameters. The parameters are updated during training based on adjoins and learning rate.
     params: RefCell<BTreeMap<Ident, F>>,
+    data: RefCell<BTreeMap<Ident, NodeData<F>>>,
     eb: ExprBuilder<F, OP1, OP2>,
     calculator: &'a dyn Calculator<OP1, OP2, F>,
+}
+
+/// [Data] holds all the data related to particular [Node].
+struct NodeData<F> {
+    /// Primal (result of "forward").
+    primal: Option<F>,
+    // Accumulated adjoin (result of "backward").
+    // adjoin: Option<F>,
+}
+
+impl<F> Default for NodeData<F> {
+    fn default() -> Self {
+        Self { primal: None }
+    }
 }
 
 impl<'a, F, OP1, OP2> ComputGraph<'a, F, OP1, OP2>
@@ -53,11 +66,15 @@ where
         eb: ExprBuilder<F2, OP1, OP2>,
         calculator: &'a dyn Calculator<OP1, OP2, F2>,
     ) -> ComputGraph<'a, F2, OP1, OP2> {
+        let mut data: BTreeMap<Ident, NodeData<F2>> = BTreeMap::new();
+        for (ident, _) in eb.id_to_node.borrow().iter() {
+            data.insert(ident.clone(), NodeData::default());
+        }
         ComputGraph {
-            primals: RefCell::new(BTreeMap::new()),
             adjoins: RefCell::new(BTreeMap::new()),
             saved_variables: RefCell::new(BTreeMap::new()),
             params: RefCell::new(BTreeMap::new()),
+            data: RefCell::new(data),
             eb,
             calculator,
         }
@@ -100,9 +117,19 @@ where
         let ident = ident.as_ref();
         self.assert_ident_is_variable(ident);
         self.save_variable(ident, value.clone());
-        self.primals
-            .borrow_mut()
-            .insert(ident.clone(), value.clone())
+
+        let mut data = self.data.borrow_mut();
+        if let Some(p) = data.get_mut(&ident) {
+            p.primal.replace(value)
+        } else {
+            data.insert(
+                ident.clone(),
+                NodeData {
+                    primal: Some(value),
+                },
+            );
+            None
+        }
     }
 
     pub fn get_node(&self, ident: &Ident) -> Node<F, OP1, OP2> {
@@ -121,13 +148,23 @@ where
     /// Remove primals, keep the variables values so the user only needs to
     /// call [reset_variable][ComputGraph::reset_variable] on some variables, and not all of them.
     pub fn reset_primals_keep_variables(&mut self) {
-        self.primals = RefCell::new(BTreeMap::new());
+        {
+            let mut data = self.data.borrow_mut();
+            for (_, node) in data.iter_mut() {
+                node.primal = None
+            }
+        }
         self.refill_variables();
     }
 
     /// Reset the internal state (primals, adjoins). Do not clean parameters.
     pub fn reset(&mut self) {
-        self.primals = RefCell::new(BTreeMap::new());
+        {
+            let mut data = self.data.borrow_mut();
+            for (_, node) in data.iter_mut() {
+                node.primal = None
+            }
+        }
         self.adjoins = RefCell::new(BTreeMap::new());
         self.saved_variables = RefCell::new(BTreeMap::new());
         self.set_primals_from_params()
@@ -181,16 +218,26 @@ where
     /// This operation is MUTABLE, i.e. it mutates the internal cache of the calculated values.
     pub fn forward(&self, ident: &dyn AsRef<Ident>) -> F {
         let ident = ident.as_ref();
-        if let Some(value) = self.primals.borrow().get(&ident) {
-            return value.clone();
-        }
-        let primal = self.calculator.forward(self, ident);
-        if let Some(old) = self
-            .primals
-            .borrow_mut()
-            .insert(ident.clone(), primal.clone())
         {
-            panic!("The value for {} already set to {}", ident, old);
+            let data = self.data.borrow();
+            let node_data = data
+                .get(&ident)
+                .expect("Bug: node data is missing in forward()!");
+            if let Some(ref primal) = node_data.primal {
+                return primal.clone();
+            }
+        }
+
+        let primal = self.calculator.forward(self, ident);
+
+        {
+            let mut data = self.data.borrow_mut();
+            let node_data = data
+                .get_mut(&ident)
+                .expect("Bug: node data is missing in forward()!");
+            if let Some(old) = node_data.primal.replace(primal.clone()) {
+                panic!("The value for {} already set to {}", ident, old);
+            }
         }
         primal
     }
@@ -232,12 +279,14 @@ where
     }
 
     pub fn primal(&self, ident: &Ident) -> F {
-        let primals = self.primals.borrow();
-        primals
-            .get(ident)
-            .expect(format!("Primal missing for {}", ident).as_str())
-            .clone()
-        // Cloning full matrices (e.g. for nalgebra is very inefficient. Better use Box around the matrices).
+        let data = self.data.borrow();
+        let node_data = data.get(ident).expect("Bug! Node data missing");
+        if let Some(ref primal) = node_data.primal {
+            primal.clone()
+            // Cloning full matrices (e.g. for nalgebra) would be impractically inefficient. Use Box or Rc.
+        } else {
+            panic!("Primal missing for {}", &ident)
+        }
     }
 
     pub fn adjoin(&self, ident: &Ident) -> F {

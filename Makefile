@@ -1,5 +1,7 @@
 test: clean_csv
 	cargo test
+build:
+	cargo build
 clean_csv:
 	rm -fv *.csv || true
 clean: clean_csv
