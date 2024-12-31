@@ -65,7 +65,7 @@ where
 
     /// Set variable once, panic if the variable was already set.
     // TODO: Consider changing value: F to Into<F>
-    pub fn set_variable(&self, ident: &dyn AsRef<Ident>, value: F) {
+    pub fn set_variable(&mut self, ident: &dyn AsRef<Ident>, value: F) {
         let ident = ident.as_ref();
         if let Some(old) = self.reset_variable(ident, value) {
             panic!(
@@ -96,7 +96,7 @@ where
     }
 
     /// Set variable.
-    pub fn reset_variable(&self, ident: &dyn AsRef<Ident>, value: F) -> Option<F> {
+    pub fn reset_variable(&mut self, ident: &dyn AsRef<Ident>, value: F) -> Option<F> {
         let ident = ident.as_ref();
         self.assert_ident_is_variable(ident);
         self.save_variable(ident, value.clone());
@@ -134,9 +134,15 @@ where
     }
 
     fn set_primals_from_params(&mut self) {
-        let params = self.params.borrow();
-        for ident in params.keys() {
-            let value = params.get(&ident).unwrap().clone();
+        let params_vec: Vec<(Ident, F)>;
+        {
+            let params = self.params.borrow();
+            params_vec = params
+                .iter()
+                .map(|(ident, value)| (ident.clone(), value.clone()))
+                .collect();
+        }
+        for (ident, value) in params_vec {
             self.set_variable(&ident, value);
         }
     }
@@ -152,15 +158,21 @@ where
         }
     }
 
-    fn save_variable(&self, ident: &Ident, value: F) {
+    fn save_variable(&mut self, ident: &Ident, value: F) {
         let mut saved_variables = self.saved_variables.borrow_mut();
         saved_variables.insert(ident.clone(), value);
     }
 
     fn refill_variables(&mut self) {
-        let saved_variables = self.saved_variables.borrow();
-        for ident in saved_variables.keys() {
-            let value = saved_variables.get(&ident).unwrap().clone();
+        let saved_variables_vec: Vec<(Ident, F)>;
+        {
+            let saved_variables = self.saved_variables.borrow();
+            saved_variables_vec = saved_variables
+                .iter()
+                .map(|(ident, value)| (ident.clone(), value.clone()))
+                .collect();
+        }
+        for (ident, value) in saved_variables_vec {
             self.reset_variable(&ident, value);
         }
     }
