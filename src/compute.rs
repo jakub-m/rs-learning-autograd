@@ -22,6 +22,7 @@ where
 }
 
 /// "Freezes" the expression tree by taking ownership of the expression builder.
+/// All the methods use `&self` instead of `&mut self` because the underlying code heavily relies on `RefCell` anyway.
 pub struct ComputGraph<'a, F, OP1, OP2>
 where
     F: ComputValue,
@@ -34,6 +35,8 @@ where
     adjoins: RefCell<BTreeMap<Ident, F>>,
     /// Variable values that are saved and restored upon reset.
     saved_variables: RefCell<BTreeMap<Ident, F>>,
+    /// Parameters. The parameters are updated during training based on adjoins and learning rate.
+    params: RefCell<BTreeMap<Ident, F>>,
     eb: ExprBuilder<F, OP1, OP2>,
     calculator: &'a dyn Calculator<OP1, OP2, F>,
 }
@@ -54,6 +57,7 @@ where
             primals: RefCell::new(BTreeMap::new()),
             adjoins: RefCell::new(BTreeMap::new()),
             saved_variables: RefCell::new(BTreeMap::new()),
+            params: RefCell::new(BTreeMap::new()),
             eb,
             calculator,
         }
@@ -61,7 +65,7 @@ where
 
     /// Set variable once, panic if the variable was already set.
     // TODO: Consider changing value: F to Into<F>
-    pub fn set_variable(&mut self, ident: &dyn AsRef<Ident>, value: F) {
+    pub fn set_variable(&self, ident: &dyn AsRef<Ident>, value: F) {
         let ident = ident.as_ref();
         if let Some(old) = self.reset_variable(ident, value) {
             panic!(
@@ -73,8 +77,26 @@ where
         }
     }
 
+    pub fn set_parameter(&mut self, ident: &dyn AsRef<Ident>, value: F) {
+        let ident = ident.as_ref();
+        self.assert_ident_is_variable(ident);
+        self.save_variable(ident, value.clone());
+        let old = self
+            .params
+            .borrow_mut()
+            .insert(ident.clone(), value.clone());
+        if let Some(old) = old {
+            panic!(
+                "Value for {:?} {} already set to {}",
+                self.get_name(ident),
+                ident.as_ref(),
+                old
+            )
+        }
+    }
+
     /// Set variable.
-    pub fn reset_variable(&mut self, ident: &dyn AsRef<Ident>, value: F) -> Option<F> {
+    pub fn reset_variable(&self, ident: &dyn AsRef<Ident>, value: F) -> Option<F> {
         let ident = ident.as_ref();
         self.assert_ident_is_variable(ident);
         self.save_variable(ident, value.clone());
@@ -103,31 +125,43 @@ where
         self.refill_variables();
     }
 
-    /// Reset all the internal state (primals, adjoins).
+    /// Reset the internal state (primals, adjoins). Do not clean parameters.
     pub fn reset(&mut self) {
         self.primals = RefCell::new(BTreeMap::new());
         self.adjoins = RefCell::new(BTreeMap::new());
         self.saved_variables = RefCell::new(BTreeMap::new());
+        self.set_primals_from_params()
     }
 
-    fn save_variable(&mut self, ident: &Ident, value: F) {
+    fn set_primals_from_params(&mut self) {
+        let params = self.params.borrow();
+        for ident in params.keys() {
+            let value = params.get(&ident).unwrap().clone();
+            self.set_variable(&ident, value);
+        }
+    }
+
+    pub fn update_params_lr(&self, learning_rate: f32) {
+        let params = self.params.borrow();
+        for ident in params.keys() {
+            let mut params = self.params.borrow_mut();
+            let p = params.get_mut(&ident).unwrap();
+            let ad = self.adjoin(&ident);
+            // -1.0 because Add and Mul is implemented but Sub not necessarily.
+            *p = p.clone() + ad * -1.0 * learning_rate;
+        }
+    }
+
+    fn save_variable(&self, ident: &Ident, value: F) {
         let mut saved_variables = self.saved_variables.borrow_mut();
         saved_variables.insert(ident.clone(), value);
     }
 
     fn refill_variables(&mut self) {
-        let pairs: Vec<(Ident, F)>;
-        {
-            let saved_variables = self.saved_variables.borrow();
-            // Copy pairs to memory to please the borrow checker. Maybe can be improved though.
-            pairs = saved_variables
-                .iter()
-                .map(|(k, v)| (k.clone(), v.clone()))
-                .collect();
-        }
-
-        for (ident, value) in pairs.iter() {
-            self.reset_variable(&ident, value.clone());
+        let saved_variables = self.saved_variables.borrow();
+        for ident in saved_variables.keys() {
+            let value = saved_variables.get(&ident).unwrap().clone();
+            self.reset_variable(&ident, value);
         }
     }
 

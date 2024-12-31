@@ -109,6 +109,17 @@ impl ops::Add for MatrixF32 {
     }
 }
 
+impl ops::Mul<f32> for MatrixF32 {
+    type Output = Self;
+
+    fn mul(self, rhs: f32) -> Self::Output {
+        match self {
+            MatrixF32::M(m) => MatrixF32::new_m(m.mapv(|v| v * rhs)),
+            MatrixF32::V(v) => MatrixF32::V(v * rhs),
+        }
+    }
+}
+
 impl fmt::Display for MatrixF32 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let s = match self {

@@ -6,9 +6,15 @@ use std::collections::{BTreeMap, HashSet};
 use std::fmt::{self, Display};
 use std::ops;
 
-/// A type of the computed value (like, f32). [ops::Add] is needed so we can update the adjoins.
-pub trait ComputValue:
-    Clone + fmt::Display + fmt::Debug + DefaultAdjoin + ops::Add<Output = Self>
+/// A type of the computed value (like, f32). [ops::Add] is needed so we can update the adjoins. [ops::Mul<f32>]
+/// is to update parameters w.r.t. learning rate.
+pub trait ComputValue<V = f32>:
+    Clone
+    + fmt::Display
+    + fmt::Debug
+    + DefaultAdjoin
+    + ops::Mul<V, Output = Self>
+    + ops::Add<Self, Output = Self>
 {
 }
 

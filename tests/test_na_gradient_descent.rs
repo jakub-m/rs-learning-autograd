@@ -34,13 +34,17 @@ fn test_na_gradient_descent_sin() {
     let n_epochs = 1000;
 
     let mut rng = StdRng::seed_from_u64(42);
-    let mut p0_values = nd::ArrayD::from_shape_fn(sh((n_params, 1)), |_| rng.gen_range(-3.0..3.0));
-    let mut p1_values = nd::ArrayD::from_shape_fn(sh((n_params, 1)), |_| rng.gen_range(-3.0..3.0));
+    cg.set_parameter(
+        &p0,
+        nd::ArrayD::from_shape_fn(sh((n_params, 1)), |_| rng.gen_range(-3.0..3.0)).into(),
+    );
+    cg.set_parameter(
+        &p1,
+        nd::ArrayD::from_shape_fn(sh((n_params, 1)), |_| rng.gen_range(-3.0..3.0)).into(),
+    );
+
     for _ in 0..n_epochs {
         cg.reset();
-        cg.set_variable(&p0, p0_values.clone().into());
-        cg.set_variable(&p1, p1_values.clone().into());
-
         let mut x_count = 0;
         let mut total_loss = 0.0;
         for x_inp in input_range.into_iter() {
@@ -52,10 +56,7 @@ fn test_na_gradient_descent_sin() {
             cg.backward(&loss);
         }
         total_loss /= x_count as f32;
-        let p0_adjoins = cg.adjoin(&p0);
-        let p1_adjoins = cg.adjoin(&p1);
-        p0_values = p0_values - (p0_adjoins.m().unwrap() * learning_rate);
-        p1_values = p1_values - (p1_adjoins.m().unwrap() * learning_rate);
+        cg.update_params_lr(learning_rate);
         println!("total_loss {}", total_loss);
     }
 

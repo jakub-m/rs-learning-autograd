@@ -51,6 +51,7 @@ make marimo
 # Possible TODOs
 
 - Implement implicit parameters, not explicit arguments.
+- Implicit parameters in CNN, like in 32 filters.
 - Implement operations on tensors (not only 2d arrays) to support CNN.
 - Figure that `(a-b)*(a-b)` are the same nodes, not two different ones. To do that, use hash of node, instead of incremental id.
 - Train CNN recognizing single letter (like R letter).
