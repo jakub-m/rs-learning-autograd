@@ -1,6 +1,6 @@
 //! This module abstracts how to compute values out of nodes.
 
-use std::{cell::RefCell, collections::BTreeMap};
+use std::{cell::RefCell, collections::BTreeMap, default};
 
 use crate::core_syntax::{ComputValue, Expr, ExprBuilder, Ident, Node, Operator, VariableNameId};
 
@@ -29,8 +29,6 @@ where
     OP1: Operator,
     OP2: Operator,
 {
-    /// Adjoins are updated during a backward pass.
-    adjoins: RefCell<BTreeMap<Ident, F>>,
     /// Variable values that are saved and restored upon reset.
     saved_variables: RefCell<BTreeMap<Ident, F>>,
     /// Parameters. The parameters are updated during training based on adjoins and learning rate.
@@ -45,12 +43,15 @@ struct NodeData<F> {
     /// Primal (result of "forward").
     primal: Option<F>,
     // Accumulated adjoin (result of "backward").
-    // adjoin: Option<F>,
+    adjoin: Option<F>,
 }
 
 impl<F> Default for NodeData<F> {
     fn default() -> Self {
-        Self { primal: None }
+        Self {
+            primal: None,
+            adjoin: None,
+        }
     }
 }
 
@@ -71,7 +72,6 @@ where
             data.insert(ident.clone(), NodeData::default());
         }
         ComputGraph {
-            adjoins: RefCell::new(BTreeMap::new()),
             saved_variables: RefCell::new(BTreeMap::new()),
             params: RefCell::new(BTreeMap::new()),
             data: RefCell::new(data),
@@ -112,7 +112,8 @@ where
         }
     }
 
-    /// Set variable.
+    /// Set variable (primal) to some value. Do not fail if the variable is already set. Useful when
+    /// running `.backward()` in a loop for different input variables.
     pub fn reset_variable(&mut self, ident: &dyn AsRef<Ident>, value: F) -> Option<F> {
         let ident = ident.as_ref();
         self.assert_ident_is_variable(ident);
@@ -126,6 +127,7 @@ where
                 ident.clone(),
                 NodeData {
                     primal: Some(value),
+                    ..Default::default()
                 },
             );
             None
@@ -162,10 +164,9 @@ where
         {
             let mut data = self.data.borrow_mut();
             for (_, node) in data.iter_mut() {
-                node.primal = None
+                *node = NodeData::default();
             }
         }
-        self.adjoins = RefCell::new(BTreeMap::new());
         self.saved_variables = RefCell::new(BTreeMap::new());
         self.set_primals_from_params()
     }
@@ -271,11 +272,14 @@ where
 
     /// Call `add_adjoin` to update adjoin for a node with partial adjoin.
     pub fn add_adjoin(&self, ident: &Ident, adjoin: &F) {
-        let mut adjoins = self.adjoins.borrow_mut();
-        let updated = adjoins
-            .get(ident)
+        // TODO try with mut self?
+        let mut data = self.data.borrow_mut();
+        let node_data = data.get_mut(ident).expect("Bug! Node data missing");
+        let updated_adjoin = node_data
+            .adjoin
+            .as_ref()
             .map_or(adjoin.clone(), |old| old.clone() + adjoin.clone());
-        adjoins.insert(ident.clone(), updated);
+        node_data.adjoin.replace(updated_adjoin);
     }
 
     pub fn primal(&self, ident: &Ident) -> F {
@@ -290,9 +294,11 @@ where
     }
 
     pub fn adjoin(&self, ident: &Ident) -> F {
-        let adjoins = self.adjoins.borrow();
-        adjoins
-            .get(ident)
+        let data = self.data.borrow();
+        let node_data = data.get(ident).expect("Bug: node data missing!");
+        node_data
+            .adjoin
+            .as_ref()
             .expect(
                 format!(
                     "Adjoin missing for {}, maybe you didn't run backward?",
