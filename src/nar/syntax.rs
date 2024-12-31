@@ -1,7 +1,6 @@
-// TODO deprecate
 use crate::core_syntax::{ComputValue, DefaultAdjoin, Expr, Node, Operator};
-use nalgebra as na;
-use nalgebra::VecStorage;
+use ndarray as nd;
+
 use std::fmt;
 use std::ops;
 use std::rc::Rc;
@@ -54,18 +53,18 @@ impl fmt::Display for NaOperAry2 {
 #[derive(Debug, Clone, PartialEq)]
 pub enum MatrixF32 {
     /// Matrix. Use [Rc] so `.clone` does not clone whole matrix, but only a reference to the matrix.
-    M(Rc<na::DMatrix<f32>>),
+    M(Rc<nd::ArrayD<f32>>),
     /// Single value. Useful to have syntax like "matrix*2 + 3.0".
     V(f32),
 }
 
 impl MatrixF32 {
-    pub fn new_m(m: na::DMatrix<f32>) -> MatrixF32 {
+    pub fn new_m(m: nd::ArrayD<f32>) -> MatrixF32 {
         MatrixF32::M(Rc::new(m))
     }
 
     /// Borrow the underlying matrix.
-    pub fn m(&self) -> Option<&na::DMatrix<f32>> {
+    pub fn m(&self) -> Option<&nd::ArrayD<f32>> {
         match self {
             MatrixF32::M(m) => Some(m),
             MatrixF32::V(_) => None,
@@ -80,11 +79,15 @@ impl MatrixF32 {
     }
 }
 
-impl From<na::Matrix<f32, na::Dyn, na::Dyn, VecStorage<f32, na::Dyn, na::Dyn>>> for MatrixF32 {
-    fn from(value: na::Matrix<f32, na::Dyn, na::Dyn, VecStorage<f32, na::Dyn, na::Dyn>>) -> Self {
-        MatrixF32::M(Rc::new(value))
-    }
-}
+//impl From<_na::Matrix<f32, _na::Dyn, _na::Dyn, _na::VecStorage<f32, _na::Dyn, _na::Dyn>>>
+//    for MatrixF32
+//{
+//    fn from(
+//        value: _na::Matrix<f32, _na::Dyn, _na::Dyn, _na::VecStorage<f32, _na::Dyn, _na::Dyn>>,
+//    ) -> Self {
+//        MatrixF32::M(Rc::new(value))
+//    }
+//}
 
 impl From<f32> for MatrixF32 {
     fn from(value: f32) -> Self {
@@ -103,8 +106,8 @@ impl ops::Add for MatrixF32 {
             (MatrixF32::M(m1), MatrixF32::M(m2)) => {
                 MatrixF32::M(Rc::new(m1.as_ref() + m2.as_ref()))
             }
-            (MatrixF32::M(m), MatrixF32::V(v)) => MatrixF32::M(Rc::new(m.as_ref().add_scalar(v))),
-            (MatrixF32::V(v), MatrixF32::M(m)) => MatrixF32::M(Rc::new(m.as_ref().add_scalar(v))),
+            (MatrixF32::M(m1), MatrixF32::V(v2)) => MatrixF32::M(Rc::new(m1.as_ref() + v2)),
+            (MatrixF32::V(v1), MatrixF32::M(m2)) => MatrixF32::M(Rc::new(m2.as_ref() + v1)),
             (MatrixF32::V(v1), MatrixF32::V(v2)) => MatrixF32::V(v1 + v2),
         }
     }
@@ -122,12 +125,13 @@ impl fmt::Display for MatrixF32 {
 
 impl DefaultAdjoin for MatrixF32 {
     fn default_adjoin(value: Self) -> Self {
+        let a = 1.0;
         match value {
             MatrixF32::M(m) => {
-                let m = na::DMatrix::from_element(m.nrows(), m.ncols(), 1.0);
+                let m = nd::ArrayD::from_elem(m.shape(), a);
                 MatrixF32::M(Rc::new(m))
             }
-            MatrixF32::V(_) => MatrixF32::V(1.0),
+            MatrixF32::V(_) => MatrixF32::V(a),
         }
     }
 }
