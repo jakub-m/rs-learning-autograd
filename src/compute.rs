@@ -147,10 +147,10 @@ where
         }
     }
 
-    pub fn update_params_lr(&self, learning_rate: f32) {
-        let params = self.params.borrow();
-        for ident in params.keys() {
-            let mut params = self.params.borrow_mut();
+    pub fn update_params_lr(&mut self, learning_rate: f32) {
+        let mut params = self.params.borrow_mut();
+        let param_idents: Vec<Ident> = params.keys().map(|v| v.clone()).collect();
+        for ident in param_idents {
             let p = params.get_mut(&ident).unwrap();
             let ad = self.adjoin(&ident);
             // -1.0 because Add and Mul is implemented but Sub not necessarily.
