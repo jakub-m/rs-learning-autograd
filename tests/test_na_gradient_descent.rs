@@ -1,11 +1,11 @@
 mod utils;
-use nalgebra as na;
+use ndarray as nd;
 use rand::{self, rngs::StdRng};
 use rand::{Rng, SeedableRng};
 use rs_autograd::{
     compute::ComputGraph,
     core_syntax::ExprBuilder,
-    na::{
+    nar::{
         calculator::MatrixCalculator,
         syntax::{MatrixF32, NaOperAry1, NaOperAry2},
     },
@@ -34,11 +34,8 @@ fn test_na_gradient_descent_sin() {
     let n_epochs = 1000;
 
     let mut rng = StdRng::seed_from_u64(42);
-    let mut p0_values =
-        na::DMatrix::from_iterator(n_params, 1, (0..n_params).map(|_| rng.gen_range(-3.0..3.0)));
-    let mut p1_values =
-        na::DMatrix::from_iterator(n_params, 1, (0..n_params).map(|_| rng.gen_range(-3.0..3.0)));
-
+    let mut p0_values = nd::ArrayD::from_shape_fn(sh((n_params, 1)), |_| rng.gen_range(-3.0..3.0));
+    let mut p1_values = nd::ArrayD::from_shape_fn(sh((n_params, 1)), |_| rng.gen_range(-3.0..3.0));
     for _ in 0..n_epochs {
         cg.reset();
         cg.set_variable(&p0, p0_values.clone().into());
@@ -88,4 +85,8 @@ fn test_na_gradient_descent_sin() {
 
 fn new_eb() -> ExprBuilder<MatrixF32, NaOperAry1, NaOperAry2> {
     ExprBuilder::new()
+}
+
+fn sh((a, b): (usize, usize)) -> nd::IxDyn {
+    nd::IxDyn(&[a, b])
 }

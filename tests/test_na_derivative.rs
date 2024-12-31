@@ -1,9 +1,9 @@
 mod utils;
-use nalgebra as na;
+use ndarray as nd;
 use rs_autograd::{
     compute::ComputGraph,
     core_syntax::ExprBuilder,
-    na::{
+    nar::{
         calculator::MatrixCalculator,
         syntax::{MatrixF32, NaOperAry1, NaOperAry2},
     },
@@ -39,11 +39,13 @@ fn sum_relu_func() {
 
         cg.set_variable(
             &p0,
-            MatrixF32::new_m(na::DMatrix::from_vec(3, 1, vec![0.0, 2.0, 3.9])),
+            MatrixF32::new_m(nd::ArrayD::from_shape_vec(sh((3, 1)), vec![0.0, 2.0, 3.9]).unwrap()),
         );
         cg.set_variable(
             &p1,
-            MatrixF32::new_m(na::DMatrix::from_vec(3, 1, vec![1.0, -1.0, -2.0])),
+            MatrixF32::new_m(
+                nd::ArrayD::from_shape_vec(sh((3, 1)), vec![1.0, -1.0, -2.0]).unwrap(),
+            ),
         );
 
         cg.forward(&y);
@@ -72,4 +74,8 @@ fn sum_relu_func() {
     ) -> ComputGraph<'a, MatrixF32, NaOperAry1, NaOperAry2> {
         ComputGraph::<MatrixF32, NaOperAry1, NaOperAry2>::new(eb, &MatrixCalculator)
     }
+}
+
+fn sh((a, b): (usize, usize)) -> nd::IxDyn {
+    nd::IxDyn(&[a, b])
 }
