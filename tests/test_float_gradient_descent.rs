@@ -42,7 +42,7 @@ fn test_gradient_descent_simple() {
         print!("epoch {}", i);
         print!("\tparams {:?}", param_value_a);
         // Reset state of primals and adjoins.
-        cg.reset();
+        cg.reset_state_for_next_epoch();
         // Set equation ("model") parameters.
         cg.set_variable(&a, param_value_a);
 
@@ -51,7 +51,7 @@ fn test_gradient_descent_simple() {
         let mut n = 0.0_f32;
         for x_inp in input_range.into_iter() {
             n += 1.0;
-            cg.reset_primals_keep_variables();
+            cg.reset_state_for_next_input();
             cg.reset_variable(&x, x_inp);
             // The target is the ideal t = ax;
             cg.reset_variable(&t, poly(x_inp));
@@ -71,7 +71,7 @@ fn test_gradient_descent_simple() {
     } // end of epoch
 
     let mut df = |x_inp: f32| {
-        cg.reset_primals_keep_variables();
+        cg.reset_state_for_next_input();
         cg.reset_variable(&x, x_inp);
         cg.forward(&y)
     };
@@ -114,7 +114,7 @@ fn test_fit_simple_relu() {
     let learn_rate = 0.1;
 
     for i in 0..n_epochs {
-        cg.reset();
+        cg.reset_state_for_next_epoch();
         print!("epoch {}", i);
         print!("\tparams {:?}", param_values);
         // Reset state of primals and adjoins.
@@ -126,7 +126,7 @@ fn test_fit_simple_relu() {
         let mut n = 0.0_f32;
         for x_inp in input_range.into_iter() {
             n += 1.0;
-            cg.reset_primals_keep_variables();
+            cg.reset_state_for_next_input();
             cg.reset_variable(&x, x_inp);
             cg.reset_variable(&t, target_poly(x_inp));
             tot_loss += cg.forward(&loss);
@@ -145,7 +145,7 @@ fn test_fit_simple_relu() {
     }
 
     let mut df = |x_inp: f32| {
-        cg.reset_primals_keep_variables();
+        cg.reset_state_for_next_input();
         cg.reset_variable(&x, x_inp);
         cg.forward(&y)
     };
@@ -202,7 +202,7 @@ fn test_relu_to_sin() {
     for i in 0..n_epochs {
         print!("i {}", i);
         //print!("\tparams {:?}", param_values);
-        cg.reset();
+        cg.reset_state_for_next_epoch();
         for i in 0..param_values.len() {
             cg.reset_variable(&params[i], param_values[i]);
         }
@@ -211,7 +211,7 @@ fn test_relu_to_sin() {
         let mut tot_loss = 0_f32;
         for x_inp in input_range.into_iter() {
             x_count += 1;
-            cg.reset_primals_keep_variables();
+            cg.reset_state_for_next_input();
             cg.reset_variable(&x, x_inp);
             cg.reset_variable(&t, target_poly(x_inp));
             tot_loss += cg.forward(&loss);
@@ -233,7 +233,7 @@ fn test_relu_to_sin() {
     }
 
     let mut f2 = |x_inp: f32| {
-        cg.reset_primals_keep_variables();
+        cg.reset_state_for_next_input();
         cg.reset_variable(&x, x_inp);
         cg.forward(&y)
     };

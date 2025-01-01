@@ -1,6 +1,6 @@
 //! This module abstracts how to compute values out of nodes.
 
-use std::{cell::RefCell, collections::BTreeMap, default};
+use std::{cell::RefCell, collections::BTreeMap};
 
 use crate::core_syntax::{ComputValue, Expr, ExprBuilder, Ident, Node, Operator, VariableNameId};
 
@@ -149,18 +149,18 @@ where
 
     /// Remove primals, keep the variables values so the user only needs to
     /// call [reset_variable][ComputGraph::reset_variable] on some variables, and not all of them.
-    pub fn reset_primals_keep_variables(&mut self) {
+    pub fn reset_state_for_next_input(&mut self) {
         {
             let mut data = self.data.borrow_mut();
             for (_, node) in data.iter_mut() {
                 node.primal = None
             }
         }
-        self.refill_variables();
+        self.refill_primals_that_were_explicitly_set();
     }
 
     /// Reset the internal state (primals, adjoins). Do not clean parameters.
-    pub fn reset(&mut self) {
+    pub fn reset_state_for_next_epoch(&mut self) {
         {
             let mut data = self.data.borrow_mut();
             for (_, node) in data.iter_mut() {
@@ -168,10 +168,10 @@ where
             }
         }
         self.saved_variables = RefCell::new(BTreeMap::new());
-        self.set_primals_from_params()
+        self.restore_parameters()
     }
 
-    fn set_primals_from_params(&mut self) {
+    fn restore_parameters(&mut self) {
         let params_vec: Vec<(Ident, F)>;
         {
             let params = self.params.borrow();
@@ -201,7 +201,7 @@ where
         saved_variables.insert(ident.clone(), value);
     }
 
-    fn refill_variables(&mut self) {
+    fn refill_primals_that_were_explicitly_set(&mut self) {
         let saved_variables_vec: Vec<(Ident, F)>;
         {
             let saved_variables = self.saved_variables.borrow();

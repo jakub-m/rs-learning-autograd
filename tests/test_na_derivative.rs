@@ -34,7 +34,7 @@ fn sum_relu_func() {
     let [x, y, p0, p1] = [x, y, p0, p1].map(|p| p.ident());
     let mut cg = new_cb(eb);
     let mut df = |x_inp: f32| {
-        cg.reset();
+        cg.reset_state_for_next_epoch();
         cg.set_variable(&x, MatrixF32::V(x_inp));
 
         cg.set_variable(

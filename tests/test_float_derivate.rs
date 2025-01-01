@@ -82,7 +82,7 @@ fn sin_cos() {
     let y = y.ident();
     let mut cg = ComputGraph::<f32, _, _>::new(eb, &FloatCalculator);
     let mut df = |x_inp: f32| {
-        cg.reset();
+        cg.reset_state_for_next_epoch();
         cg.set_variable(&x, x_inp);
         cg.forward(&y);
         cg.backward(&y);
@@ -109,7 +109,7 @@ fn test_pow() {
     let y = y.ident();
     let mut cg = ComputGraph::<f32, _, _>::new(eb, &FloatCalculator);
     let mut df = |x_inp: f32| {
-        cg.reset();
+        cg.reset_state_for_next_epoch();
         cg.set_variable(&x, x_inp);
         cg.forward(&y);
         cg.backward(&y);
