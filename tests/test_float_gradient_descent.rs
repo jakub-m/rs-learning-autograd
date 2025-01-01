@@ -51,9 +51,9 @@ fn test_gradient_descent_simple() {
         for x_inp in input_range.into_iter() {
             n += 1.0;
             cg.reset_state_for_next_input();
-            cg.reset_variable(&x, x_inp);
+            cg.reset_primal_of_variable(&x, x_inp);
             // The target is the ideal t = ax;
-            cg.reset_variable(&t, poly(x_inp));
+            cg.reset_primal_of_variable(&t, poly(x_inp));
             // Run forward and backward pass.
             tot_loss += cg.forward(&loss);
             cg.backward(&loss);
@@ -68,7 +68,7 @@ fn test_gradient_descent_simple() {
 
     let mut df = |x_inp: f32| {
         cg.reset_state_for_next_input();
-        cg.reset_variable(&x, x_inp);
+        cg.reset_primal_of_variable(&x, x_inp);
         cg.forward(&y)
     };
     assert_functions_similar(
@@ -118,8 +118,8 @@ fn test_fit_simple_relu() {
         for x_inp in input_range.into_iter() {
             n += 1.0;
             cg.reset_state_for_next_input();
-            cg.reset_variable(&x, x_inp);
-            cg.reset_variable(&t, target_poly(x_inp));
+            cg.reset_primal_of_variable(&x, x_inp);
+            cg.reset_primal_of_variable(&t, target_poly(x_inp));
             tot_loss += cg.forward(&loss);
             cg.backward(&loss);
         }
@@ -135,7 +135,7 @@ fn test_fit_simple_relu() {
 
     let mut df = |x_inp: f32| {
         cg.reset_state_for_next_input();
-        cg.reset_variable(&x, x_inp);
+        cg.reset_primal_of_variable(&x, x_inp);
         cg.forward(&y)
     };
     assert_functions_similar(
@@ -193,7 +193,7 @@ fn test_relu_to_sin() {
         //print!("\tparams {:?}", param_values);
         cg.reset_state_for_next_epoch();
         for i in 0..param_values.len() {
-            cg.reset_variable(&params[i], param_values[i]);
+            cg.reset_primal_of_variable(&params[i], param_values[i]);
         }
 
         let mut x_count = 0_usize;
@@ -201,8 +201,8 @@ fn test_relu_to_sin() {
         for x_inp in input_range.into_iter() {
             x_count += 1;
             cg.reset_state_for_next_input();
-            cg.reset_variable(&x, x_inp);
-            cg.reset_variable(&t, target_poly(x_inp));
+            cg.reset_primal_of_variable(&x, x_inp);
+            cg.reset_primal_of_variable(&t, target_poly(x_inp));
             tot_loss += cg.forward(&loss);
             cg.backward(&loss);
         }
@@ -223,7 +223,7 @@ fn test_relu_to_sin() {
 
     let mut f2 = |x_inp: f32| {
         cg.reset_state_for_next_input();
-        cg.reset_variable(&x, x_inp);
+        cg.reset_primal_of_variable(&x, x_inp);
         cg.forward(&y)
     };
     assert_functions_similar(

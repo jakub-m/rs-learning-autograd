@@ -28,33 +28,30 @@ where
     OP1: Operator,
     OP2: Operator,
 {
-    /// Parameters. The parameters are updated during training based on adjoins and learning rate.
-    /// Deprecate.
-    data: RefCell<BTreeMap<Ident, NodeData<F>>>,
     ast: RefCell<BTreeMap<Ident, Node2<F, OP1, OP2>>>,
     calculator: &'a dyn Calculator<OP1, OP2, F>,
 }
 
-/// Holds all the numeric data related to a node in computation graph.
-/// The node types are:
-/// - Variable - explicitly set by the user, an input variable. The variables are reset often.
-/// - Parameter - parameter of the model, that is updated during back-propagation. The parameters
-///   are initialized once (to random values) and then updated at the end of each training epoch.
-#[derive(Clone, Debug)]
-enum NodeData<F> {
-    /// The node holds a variable, like input variable. The variable is reset for every input.
-    Variable {
-        /// Primal (result of "forward").
-        primal: Option<F>,
-        /// Accumulated adjoin (result of "backward"). The u32 is the count of how many "add adjoin" was run on this adjoin.
-        /// This count is needed to divide adjoin when applying learn rate.
-        adjoin: Option<(F, u32)>,
-    },
-    /// The node holds model parameters. The node parameters are not reset, they are modified on each epoch.
-    Parameter { primal: F, adjoin: Option<(F, u32)> },
-    /// The node type was not yet set. Once set, the node type cannot be changed.
-    Unset,
-}
+//remove /// Holds all the numeric data related to a node in computation graph.
+//remove /// The node types are:
+//remove /// - Variable - explicitly set by the user, an input variable. The variables are reset often.
+//remove /// - Parameter - parameter of the model, that is updated during back-propagation. The parameters
+//remove ///   are initialized once (to random values) and then updated at the end of each training epoch.
+//remove #[derive(Clone, Debug)]
+//remove enum NodeData<F> {
+//remove     /// The node holds a variable, like input variable. The variable is reset for every input.
+//remove     Variable {
+//remove         /// Primal (result of "forward").
+//remove         primal: Option<F>,
+//remove         /// Accumulated adjoin (result of "backward"). The u32 is the count of how many "add adjoin" was run on this adjoin.
+//remove         /// This count is needed to divide adjoin when applying learn rate.
+//remove         adjoin: Option<(F, u32)>,
+//remove     },
+//remove     /// The node holds model parameters. The node parameters are not reset, they are modified on each epoch.
+//remove     Parameter { primal: F, adjoin: Option<(F, u32)> },
+//remove     /// The node type was not yet set. Once set, the node type cannot be changed.
+//remove     Unset,
+//remove }
 
 #[derive(Debug, Clone)]
 enum Node2<F, OP1, OP2>
@@ -119,11 +116,6 @@ where
         eb: ExprBuilder<F2, OP1, OP2>,
         calculator: &'a dyn Calculator<OP1, OP2, F2>,
     ) -> ComputGraph<'a, F2, OP1, OP2> {
-        let mut data: BTreeMap<Ident, NodeData<F2>> = BTreeMap::new();
-        for (ident, _) in eb.id_to_node.borrow().iter() {
-            data.insert(ident.clone(), NodeData::Unset);
-        }
-
         let mut ast: BTreeMap<Ident, Node2<F2, OP1, OP2>> = BTreeMap::new();
         // Translate the expression tree constructed by the user to the one used internally with state-per-node.
         for (ident, expr_node) in eb.id_to_node.borrow().iter() {
@@ -155,7 +147,6 @@ where
         }
 
         ComputGraph {
-            data: RefCell::new(data),
             ast: RefCell::new(ast),
             calculator,
         }
@@ -165,7 +156,7 @@ where
     // TODO: Consider changing value: F to Into<F>
     pub fn set_variable(&mut self, ident: &dyn AsRef<Ident>, value: F) {
         let ident = ident.as_ref();
-        if let Some(old) = self.reset_variable(ident, value) {
+        if let Some(old) = self.reset_primal_of_variable(ident, value) {
             panic!(
                 "Value for {:?} {} already set to {}",
                 self.get_name(ident),
@@ -175,75 +166,31 @@ where
         }
     }
 
-    /// Fail if parameter already set.
+    /// Set parameter values. Fail if the value is already set.
     pub fn set_parameter(&mut self, ident: &dyn AsRef<Ident>, value: F) {
         let ident = ident.as_ref().clone();
-        if let Some(old) = self.reset_parameter(&ident, value) {
-            if let NodeData::Unset = old {
-            } else {
-                panic!(
-                    "Parameter {:?} {} already set to {:?}",
-                    self.get_name(&ident),
-                    &ident,
-                    &old
-                );
-            }
+        let mut ast = self.ast.borrow_mut();
+        if let Node2::Parameter { name, tensors } = ast.get_mut(&ident).expect("") {
+            if let Some(_) = tensors.primal.replace(value) {
+                panic!("Parameter {:?} already has primal set!", name);
+            };
+            tensors.adjoin.take();
+        } else {
+            panic!("Node is not Parameter!")
         }
-    }
-
-    /// Set Parameter but don't fail if the node was already set. For parameters, it's rather a low-level functionality
-    /// and `set_parameter` should be used instead.
-    fn reset_parameter(&mut self, ident: &dyn AsRef<Ident>, value: F) -> Option<NodeData<F>> {
-        let ident = ident.as_ref().clone();
-        self.assert_ident_is_variable(&ident);
-
-        let mut data = self.data.borrow_mut();
-        data.insert(
-            ident,
-            NodeData::Parameter {
-                primal: value,
-                adjoin: None,
-            },
-        )
     }
 
     /// Set variable (primal) to some value. Do not fail if the variable is already set. Useful when
     /// running `.backward()` in a loop for different input variables.
-    /// Return old variable value.
-    pub fn reset_variable(&mut self, ident: &dyn AsRef<Ident>, value: F) -> Option<F> {
+    /// Return old variable primal.
+    pub fn reset_primal_of_variable(&mut self, ident: &dyn AsRef<Ident>, value: F) -> Option<F> {
         let ident = ident.as_ref();
-        self.assert_ident_is_variable(ident);
-
-        let mut data = self.data.borrow_mut();
-        if let Some(node_data) = data.get_mut(&ident) {
-            let (old_primal, new_data) = match node_data {
-                NodeData::Variable { primal, adjoin } => (
-                    primal.clone(),
-                    NodeData::Variable {
-                        primal: Some(value),
-                        adjoin: adjoin.clone(),
-                    },
-                ),
-                NodeData::Parameter { .. } => panic!("Node already is a Parameter!"),
-                NodeData::Unset => (
-                    None,
-                    NodeData::Variable {
-                        primal: Some(value),
-                        adjoin: None,
-                    },
-                ),
-            };
-            *node_data = new_data;
-            old_primal
+        let mut ast = self.ast.borrow_mut();
+        let node = ast.get_mut(&ident).unwrap();
+        if let Node2::Variable { tensors, .. } = node {
+            tensors.primal.replace(value)
         } else {
-            data.insert(
-                ident.clone(),
-                NodeData::Variable {
-                    primal: Some(value),
-                    adjoin: None,
-                },
-            );
-            None
+            panic!("Node is not a Variable!")
         }
     }
 
@@ -261,7 +208,7 @@ where
         match node {
             Node2::Const(value) => Node::Const(value.clone()),
             Node2::Variable { tmp_name_id, .. } => Node::Variable(*tmp_name_id),
-            Node2::Parameter { name, tensors } => panic!(),
+            Node2::Parameter { .. } => panic!(),
             Node2::Ary1 { oper, arg1, .. } => Node::Ary1(*oper, *arg1),
             Node2::Ary2 {
                 oper, arg1, arg2, ..
@@ -287,42 +234,45 @@ where
     /// Reset primals for variables. Keep adjoins, and primals for Parameters.
     pub fn reset_state_for_next_input(&mut self) {
         {
-            let mut data = self.data.borrow_mut();
-            for (_, node) in data.iter_mut() {
+            let mut ast = self.ast.borrow_mut();
+            for (_, node) in ast.iter_mut() {
                 match node {
-                    NodeData::Variable { adjoin, .. } => {
-                        let new_node = NodeData::Variable {
-                            primal: None,
-                            adjoin: adjoin.clone(),
-                        };
-                        *node = new_node;
+                    Node2::Const(_) => (),
+                    Node2::Variable { tensors, .. } => {
+                        tensors.primal.take();
                     }
-                    NodeData::Parameter { .. } => (),
-                    NodeData::Unset => (),
+                    Node2::Parameter { .. } => (),
+                    Node2::Ary1 { tensors, .. } => {
+                        tensors.primal.take();
+                    }
+                    Node2::Ary2 { tensors, .. } => {
+                        tensors.primal.take();
+                    }
                 }
             }
         }
-        //self.refill_primals_that_were_explicitly_set();
     }
 
     /// Reset the internal state (variable primals, adjoins). Do not clean parameters.
     pub fn reset_state_for_next_epoch(&mut self) {
         {
-            let mut data = self.data.borrow_mut();
-            for (_ident, node) in data.iter_mut() {
-                let new_node = match node {
-                    NodeData::Variable { .. } => NodeData::Variable {
-                        primal: None,
-                        adjoin: None,
-                    },
-                    // It could be marginally faster to modify node in-place but more error prone if there are new fields in NodeData.
-                    NodeData::Parameter { primal, .. } => NodeData::Parameter {
-                        primal: primal.clone(),
-                        adjoin: None,
-                    },
-                    NodeData::Unset => NodeData::Unset,
-                };
-                *node = new_node;
+            let mut ast = self.ast.borrow_mut();
+            for (_ident, node) in ast.iter_mut() {
+                match node {
+                    Node2::Const(_) => (),
+                    Node2::Variable { tensors, .. } => {
+                        *tensors = Tensors::default();
+                    }
+                    Node2::Parameter { tensors, .. } => {
+                        tensors.adjoin.take();
+                    }
+                    Node2::Ary1 { tensors, .. } => {
+                        *tensors = Tensors::default();
+                    }
+                    Node2::Ary2 { tensors, .. } => {
+                        *tensors = Tensors::default();
+                    }
+                }
             }
         }
     }
@@ -419,14 +369,6 @@ where
         let ident = ident.as_ref();
         let adjoin = F::default_adjoin(self.forward(ident));
         self.calculator.backward(self, ident, &adjoin);
-    }
-
-    fn assert_ident_is_variable(&self, ident: &Ident) {
-        let node = self.get_node2(ident);
-        if let Node2::Variable { .. } = node {
-        } else {
-            panic!("Not a variable {}: {:?}", ident, &node)
-        }
     }
 
     /// Call `add_adjoin` to update adjoin for a node with partial adjoin.
