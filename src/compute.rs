@@ -66,6 +66,7 @@ where
     Const(F),
     Variable {
         name: String,
+        tmp_name_id: VariableNameId, // TODO remove, compat only.
         tensors: Tensors<F>,
     },
     Parameter {
@@ -133,6 +134,7 @@ where
                     name: eb
                         .get_name(name_id)
                         .expect("variable should have name but did not!"),
+                    tmp_name_id: name_id.clone(),
                     tensors,
                 },
                 Node::Ary1(oper, arg1) => Node2::Ary1 {
@@ -222,10 +224,7 @@ where
                         adjoin: adjoin.clone(),
                     },
                 ),
-                NodeData::Parameter {
-                    primal: _,
-                    adjoin: _,
-                } => panic!("Node already is a Parameter!"),
+                NodeData::Parameter { .. } => panic!("Node already is a Parameter!"),
                 NodeData::Unset => (
                     None,
                     NodeData::Variable {
@@ -259,11 +258,19 @@ where
             .get(ident)
             .expect(format!("No node for ident {}", ident).as_str());
         // Temporary compatibility code
-        todo!();
+        match node {
+            Node2::Const(value) => Node::Const(value.clone()),
+            Node2::Variable { tmp_name_id, .. } => Node::Variable(*tmp_name_id),
+            Node2::Parameter { name, tensors } => panic!(),
+            Node2::Ary1 { oper, arg1, .. } => Node::Ary1(*oper, *arg1),
+            Node2::Ary2 {
+                oper, arg1, arg2, ..
+            } => Node::Ary2(*oper, *arg1, *arg2),
+        }
     }
 
     pub fn get_name(&self, ident: &Ident) -> Option<String> {
-        if let Node2::Variable { name, tensors: _ } = self.get_node2(ident) {
+        if let Node2::Variable { name, .. } = self.get_node2(ident) {
             Some(name)
         } else {
             None
@@ -283,17 +290,14 @@ where
             let mut data = self.data.borrow_mut();
             for (_, node) in data.iter_mut() {
                 match node {
-                    NodeData::Variable { primal: _, adjoin } => {
+                    NodeData::Variable { adjoin, .. } => {
                         let new_node = NodeData::Variable {
                             primal: None,
                             adjoin: adjoin.clone(),
                         };
                         *node = new_node;
                     }
-                    NodeData::Parameter {
-                        primal: _,
-                        adjoin: _,
-                    } => (),
+                    NodeData::Parameter { .. } => (),
                     NodeData::Unset => (),
                 }
             }
@@ -307,15 +311,12 @@ where
             let mut data = self.data.borrow_mut();
             for (_ident, node) in data.iter_mut() {
                 let new_node = match node {
-                    NodeData::Variable {
-                        primal: _,
-                        adjoin: _,
-                    } => NodeData::Variable {
+                    NodeData::Variable { .. } => NodeData::Variable {
                         primal: None,
                         adjoin: None,
                     },
                     // It could be marginally faster to modify node in-place but more error prone if there are new fields in NodeData.
-                    NodeData::Parameter { primal, adjoin: _ } => NodeData::Parameter {
+                    NodeData::Parameter { primal, .. } => NodeData::Parameter {
                         primal: primal.clone(),
                         adjoin: None,
                     },
@@ -331,11 +332,7 @@ where
         let param_idents: Vec<Ident> = data
             .iter()
             .filter_map(|(ident, node_data)| {
-                if let NodeData::Parameter {
-                    primal: _,
-                    adjoin: _,
-                } = node_data
-                {
+                if let NodeData::Parameter { .. } = node_data {
                     Some(ident.clone())
                 } else {
                     None
@@ -372,12 +369,12 @@ where
                 .expect("Bug: node data is missing in forward()!");
 
             let new_node_data = match node_data {
-                NodeData::Variable { primal, adjoin: _ } => match primal {
+                NodeData::Variable { primal, .. } => match primal {
                     Some(primal) => return primal.clone(),
                     None => None,
                 },
 
-                NodeData::Parameter { primal, adjoin: _ } => return primal.clone(),
+                NodeData::Parameter { primal, .. } => return primal.clone(),
                 // If you run .forward() on a node, and the node is Unset, then assume the node is a Variable (e.g. some final "y" in y=ax+b).
                 NodeData::Unset => Some(NodeData::Variable {
                     primal: Option::<F>::None,
@@ -402,7 +399,7 @@ where
                     None => NodeData::Variable { primal: Some(calculated_primal.clone()), adjoin: adjoin.clone() }
                     ,
                 },
-                NodeData::Parameter { primal: _, adjoin: _ } => panic!("The node is Parameter but expected Variable!"),
+                NodeData::Parameter {..} => panic!("The node is Parameter but expected Variable!"),
                 NodeData::Unset => panic!("The node is Unset during forward, but it should be already a variable or parameter!"),
             };
             *node_data = new_data;
@@ -426,11 +423,7 @@ where
 
     fn assert_ident_is_variable(&self, ident: &Ident) {
         let node = self.get_node2(ident);
-        if let Node2::Variable {
-            name: _,
-            tensors: _,
-        } = node
-        {
+        if let Node2::Variable { .. } = node {
         } else {
             panic!("Not a variable {}: {:?}", ident, &node)
         }
@@ -442,8 +435,8 @@ where
         let mut data = self.data.borrow_mut();
         let node_data = data.get_mut(ident).expect("Bug! Node data missing");
         let maybe_old_adjoin : &mut Option<(F, u32)> = match node_data {
-            NodeData::Variable { primal: _, adjoin } => adjoin,
-            NodeData::Parameter { primal: _, adjoin } => adjoin,
+            NodeData::Variable { adjoin , ..} => adjoin,
+            NodeData::Parameter {  adjoin , ..} => adjoin,
             NodeData::Unset => panic!("The node is Unset during add_adjoin, but it should be already a variable or parameter!"),
         };
         let updated_adjoin: (F, u32) = if let Some((old_adjoin, old_cnt)) = maybe_old_adjoin {
@@ -458,12 +451,12 @@ where
         let data = self.data.borrow();
         let node_data = data.get(ident).expect("Bug! Node data missing");
         match node_data {
-            NodeData::Variable { primal, adjoin: _ } => if let Some(primal) = primal {
+            NodeData::Variable { primal, .. } => if let Some(primal) = primal {
                 primal.clone()
             } else {
                 panic!("Primal missing for {}", &ident)
             },
-            NodeData::Parameter { primal, adjoin: _ } => primal.clone(),
+            NodeData::Parameter { primal, .. } => primal.clone(),
             NodeData::Unset => panic!("The node is Unset during .primal(), but it should be already a variable or parameter!"),
         }
     }
@@ -472,8 +465,8 @@ where
         let data = self.data.borrow();
         let node_data = data.get(ident).expect("Bug: node data missing!");
         let maybe_adjoin = match node_data {
-            NodeData::Variable { primal: _, adjoin } => adjoin,
-            NodeData::Parameter { primal: _, adjoin } => adjoin,
+            NodeData::Variable {  adjoin , ..} => adjoin,
+            NodeData::Parameter {  adjoin , ..} => adjoin,
             NodeData::Unset => panic!("The node is Unset during .adjoin(), but it should be already a variable or parameter!"),
         };
         match maybe_adjoin {
