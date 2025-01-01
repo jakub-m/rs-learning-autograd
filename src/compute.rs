@@ -38,22 +38,32 @@ where
     calculator: &'a dyn Calculator<OP1, OP2, F>,
 }
 
-/// [Data] holds all the data related to particular [Node].
-struct NodeData<F> {
-    /// Primal (result of "forward").
-    primal: Option<F>,
-    // Accumulated adjoin (result of "backward").
-    adjoin: Option<F>,
+/// Holds all the numeric data related to a node in computation graph.
+/// The node types are:
+/// - Variable - explicitly set by the user, an input variable. The variables are reset often.
+/// - Parameter - parameter of the model, that is updated during back-propagation. The parameters
+///   are initialized once (to random values) and then updated at the end of each training epoch.
+#[derive(Clone)]
+enum NodeData<F> {
+    /// The node holds a variable, like input variable. The variable is reset for every input.
+    Variable {
+        /// Primal (result of "forward").
+        primal: Option<F>,
+        // Accumulated adjoin (result of "backward").
+        adjoin: Option<F>,
+    },
+    /// The node holds model parameters. The node parameters are not reset, they are modified on each epoch.
+    Parameter { primal: F, adjoin: Option<F> },
+    /// The node type was not yet set. Once set, the node type cannot be changed.
+    Unset,
 }
 
-impl<F> Default for NodeData<F> {
-    fn default() -> Self {
-        Self {
-            primal: None,
-            adjoin: None,
-        }
-    }
-}
+//impl<F> Default for NodeData<F> {
+//    fn default() -> Self {
+//        todo!(); // remove, not needed
+//        NodeData::Unset
+//    }
+//}
 
 impl<'a, F, OP1, OP2> ComputGraph<'a, F, OP1, OP2>
 where
@@ -69,7 +79,7 @@ where
     ) -> ComputGraph<'a, F2, OP1, OP2> {
         let mut data: BTreeMap<Ident, NodeData<F2>> = BTreeMap::new();
         for (ident, _) in eb.id_to_node.borrow().iter() {
-            data.insert(ident.clone(), NodeData::default());
+            data.insert(ident.clone(), NodeData::Unset);
         }
         ComputGraph {
             saved_variables: RefCell::new(BTreeMap::new()),
@@ -114,20 +124,42 @@ where
 
     /// Set variable (primal) to some value. Do not fail if the variable is already set. Useful when
     /// running `.backward()` in a loop for different input variables.
+    /// Return old variable value.
     pub fn reset_variable(&mut self, ident: &dyn AsRef<Ident>, value: F) -> Option<F> {
         let ident = ident.as_ref();
         self.assert_ident_is_variable(ident);
         self.save_variable(ident, value.clone());
 
         let mut data = self.data.borrow_mut();
-        if let Some(p) = data.get_mut(&ident) {
-            p.primal.replace(value)
+        if let Some(node_data) = data.get_mut(&ident) {
+            let (old_primal, new_data) = match node_data {
+                NodeData::Variable { primal, adjoin } => (
+                    primal.clone(),
+                    NodeData::Variable {
+                        primal: Some(value),
+                        adjoin: adjoin.clone(),
+                    },
+                ),
+                NodeData::Parameter {
+                    primal: _,
+                    adjoin: _,
+                } => panic!("Node already is a Parameter!"),
+                NodeData::Unset => (
+                    None,
+                    NodeData::Variable {
+                        primal: Some(value),
+                        adjoin: None,
+                    },
+                ),
+            };
+            *node_data = new_data;
+            old_primal
         } else {
             data.insert(
                 ident.clone(),
-                NodeData {
+                NodeData::Variable {
                     primal: Some(value),
-                    ..Default::default()
+                    adjoin: None,
                 },
             );
             None
@@ -147,43 +179,70 @@ where
         self.eb.get_name(&name_id)
     }
 
-    /// Remove primals, keep the variables values so the user only needs to
-    /// call [reset_variable][ComputGraph::reset_variable] on some variables, and not all of them.
+    /// Reset primals for variables. Keep adjoins, and primals for Parameters.
     pub fn reset_state_for_next_input(&mut self) {
         {
             let mut data = self.data.borrow_mut();
             for (_, node) in data.iter_mut() {
-                node.primal = None
+                match node {
+                    NodeData::Variable { primal: _, adjoin } => {
+                        let new_node = NodeData::Variable {
+                            primal: None,
+                            adjoin: adjoin.clone(),
+                        };
+                        *node = new_node;
+                    }
+                    NodeData::Parameter {
+                        primal: _,
+                        adjoin: _,
+                    } => (),
+                    NodeData::Unset => (),
+                }
             }
         }
-        self.refill_primals_that_were_explicitly_set();
+        //self.refill_primals_that_were_explicitly_set();
     }
 
-    /// Reset the internal state (primals, adjoins). Do not clean parameters.
+    /// Reset the internal state (variable primals, adjoins). Do not clean parameters.
     pub fn reset_state_for_next_epoch(&mut self) {
         {
             let mut data = self.data.borrow_mut();
             for (_, node) in data.iter_mut() {
-                *node = NodeData::default();
+                let new_node = match node {
+                    NodeData::Variable {
+                        primal: _,
+                        adjoin: _,
+                    } => NodeData::Variable {
+                        primal: None,
+                        adjoin: None,
+                    },
+                    // It could be marginally faster to modify node in-place but more error prone if there are new fields in NodeData.
+                    NodeData::Parameter { primal, adjoin: _ } => NodeData::Parameter {
+                        primal: primal.clone(),
+                        adjoin: None,
+                    },
+                    NodeData::Unset => NodeData::Unset,
+                };
+                *node = new_node;
             }
         }
         self.saved_variables = RefCell::new(BTreeMap::new());
-        self.restore_parameters()
+        //self.restore_parameters()
     }
 
-    fn restore_parameters(&mut self) {
-        let params_vec: Vec<(Ident, F)>;
-        {
-            let params = self.params.borrow();
-            params_vec = params
-                .iter()
-                .map(|(ident, value)| (ident.clone(), value.clone()))
-                .collect();
-        }
-        for (ident, value) in params_vec {
-            self.set_variable(&ident, value);
-        }
-    }
+    //fn restore_parameters(&mut self) {
+    //    let params_vec: Vec<(Ident, F)>;
+    //    {
+    //        let params = self.params.borrow();
+    //        params_vec = params
+    //            .iter()
+    //            .map(|(ident, value)| (ident.clone(), value.clone()))
+    //            .collect();
+    //    }
+    //    for (ident, value) in params_vec {
+    //        self.set_variable(&ident, value);
+    //    }
+    //}
 
     pub fn update_params_lr(&mut self, learning_rate: f32) {
         let mut params = self.params.borrow_mut();
@@ -201,46 +260,72 @@ where
         saved_variables.insert(ident.clone(), value);
     }
 
-    fn refill_primals_that_were_explicitly_set(&mut self) {
-        let saved_variables_vec: Vec<(Ident, F)>;
-        {
-            let saved_variables = self.saved_variables.borrow();
-            saved_variables_vec = saved_variables
-                .iter()
-                .map(|(ident, value)| (ident.clone(), value.clone()))
-                .collect();
-        }
-        for (ident, value) in saved_variables_vec {
-            self.reset_variable(&ident, value);
-        }
-    }
+    //fn refill_primals_that_were_explicitly_set(&mut self) {
+    //    let saved_variables_vec: Vec<(Ident, F)>;
+    //    {
+    //        let saved_variables = self.saved_variables.borrow();
+    //        saved_variables_vec = saved_variables
+    //            .iter()
+    //            .map(|(ident, value)| (ident.clone(), value.clone()))
+    //            .collect();
+    //    }
+    //    for (ident, value) in saved_variables_vec {
+    //        self.reset_variable(&ident, value);
+    //    }
+    //}
 
     /// Forward pass, calculate primals.
     /// This operation is MUTABLE, i.e. it mutates the internal cache of the calculated values.
     pub fn forward(&self, ident: &dyn AsRef<Ident>) -> F {
         let ident = ident.as_ref();
         {
-            let data = self.data.borrow();
+            let mut data = self.data.borrow_mut();
             let node_data = data
                 .get(&ident)
                 .expect("Bug: node data is missing in forward()!");
-            if let Some(ref primal) = node_data.primal {
-                return primal.clone();
+
+            let new_node_data = match node_data {
+                NodeData::Variable { primal, adjoin: _ } => match primal {
+                    Some(primal) => return primal.clone(),
+                    None => None,
+                },
+
+                NodeData::Parameter { primal, adjoin: _ } => return primal.clone(),
+                // If you run .forward() on a node, and the node is Unset, then assume the node is a Variable (e.g. some final "y" in y=ax+b).
+                NodeData::Unset => Some(NodeData::Variable {
+                    primal: Option::<F>::None,
+                    adjoin: None,
+                }),
+            };
+            if let Some(new_node_data) = new_node_data {
+                data.insert(ident.clone(), new_node_data).unwrap();
             }
         }
 
-        let primal = self.calculator.forward(self, ident);
+        eprintln!(
+            "forward {} {:?} before compute_primal",
+            ident,
+            self.get_name(ident),
+        );
+        let calculated_primal = self.calculator.forward(self, ident);
 
         {
             let mut data = self.data.borrow_mut();
             let node_data = data
                 .get_mut(&ident)
                 .expect("Bug: node data is missing in forward()!");
-            if let Some(old) = node_data.primal.replace(primal.clone()) {
-                panic!("The value for {} already set to {}", ident, old);
-            }
+            let new_data: NodeData<F> = match node_data {
+                NodeData::Variable { primal, adjoin } => match primal {
+                    Some(old) => panic!("The value for {} already set to {}", ident, old),
+                    None => NodeData::Variable { primal: Some(calculated_primal.clone()), adjoin: adjoin.clone() }
+                    ,
+                },
+                NodeData::Parameter { primal: _, adjoin: _ } => panic!("The node is Parameter but expected Variable!"),
+                NodeData::Unset => panic!("The node is Unset during forward, but it should be already a variable or parameter!"),
+            };
+            *node_data = new_data;
         }
-        primal
+        calculated_primal
     }
 
     /// Implement reverse mode of automatic gradient. The procedure is as follows:
@@ -275,38 +360,48 @@ where
         // TODO try with mut self?
         let mut data = self.data.borrow_mut();
         let node_data = data.get_mut(ident).expect("Bug! Node data missing");
-        let updated_adjoin = node_data
-            .adjoin
-            .as_ref()
-            .map_or(adjoin.clone(), |old| old.clone() + adjoin.clone());
-        node_data.adjoin.replace(updated_adjoin);
+        let maybe_old_adjoin : &mut Option<F> = match node_data {
+            NodeData::Variable { primal: _, adjoin } => adjoin,
+            NodeData::Parameter { primal: _, adjoin } => adjoin,
+            NodeData::Unset => panic!("The node is Unset during add_adjoin, but it should be already a variable or parameter!"),
+        };
+        let updated_adjoin: F = if let Some(old) = maybe_old_adjoin {
+            old.clone() + adjoin.clone()
+        } else {
+            adjoin.clone()
+        };
+        *maybe_old_adjoin = Some(updated_adjoin)
     }
 
     pub fn primal(&self, ident: &Ident) -> F {
         let data = self.data.borrow();
         let node_data = data.get(ident).expect("Bug! Node data missing");
-        if let Some(ref primal) = node_data.primal {
-            primal.clone()
-            // Cloning full matrices (e.g. for nalgebra) would be impractically inefficient. Use Box or Rc.
-        } else {
-            panic!("Primal missing for {}", &ident)
+        match node_data {
+            NodeData::Variable { primal, adjoin: _ } => if let Some(primal) = primal {
+                primal.clone()
+            } else {
+                panic!("Primal missing for {}", &ident)
+            },
+            NodeData::Parameter { primal, adjoin: _ } => primal.clone(),
+            NodeData::Unset => panic!("The node is Unset during .primal(), but it should be already a variable or parameter!"),
         }
     }
 
     pub fn adjoin(&self, ident: &Ident) -> F {
         let data = self.data.borrow();
         let node_data = data.get(ident).expect("Bug: node data missing!");
-        node_data
-            .adjoin
-            .as_ref()
-            .expect(
-                format!(
-                    "Adjoin missing for {}, maybe you didn't run backward?",
-                    ident
-                )
-                .as_str(),
-            )
-            .clone()
+        let maybe_adjoin = match node_data {
+            NodeData::Variable { primal: _, adjoin } => adjoin,
+            NodeData::Parameter { primal: _, adjoin } => adjoin,
+            NodeData::Unset => panic!("The node is Unset during .adjoin(), but it should be already a variable or parameter!"),
+        };
+        match maybe_adjoin {
+            Some(adjoin) => adjoin.clone(),
+            None => panic!(
+                "Adjoin missing for {}, maybe you didn't run backward?",
+                ident
+            ),
+        }
     }
 }
 
