@@ -32,8 +32,6 @@ where
     /// Deprecate.
     data: RefCell<BTreeMap<Ident, NodeData<F>>>,
     ast: RefCell<BTreeMap<Ident, Node2<F, OP1, OP2>>>,
-    /// Deprecate.
-    eb: ExprBuilder<F, OP1, OP2>,
     calculator: &'a dyn Calculator<OP1, OP2, F>,
 }
 
@@ -58,13 +56,13 @@ enum NodeData<F> {
     Unset,
 }
 
+#[derive(Debug, Clone)]
 enum Node2<F, OP1, OP2>
 where
     F: ComputValue,
     OP1: Operator,
     OP2: Operator,
 {
-    Unset,
     Const(F),
     Variable {
         name: String,
@@ -87,6 +85,7 @@ where
     },
 }
 
+#[derive(Debug, Clone)]
 struct Tensors<F>
 where
     F: ComputValue,
@@ -156,7 +155,6 @@ where
         ComputGraph {
             data: RefCell::new(data),
             ast: RefCell::new(ast),
-            eb,
             calculator,
         }
     }
@@ -251,16 +249,32 @@ where
     }
 
     pub fn get_node(&self, ident: &Ident) -> Node<F, OP1, OP2> {
-        let id_to_node = self.eb.id_to_node.borrow();
-        let node = id_to_node
+        //let id_to_node = self.eb.id_to_node.borrow();
+        //let node = id_to_node
+        //    .get(ident)
+        //    .expect(format!("No node for ident {}", ident).as_str());
+        //node.clone()
+        let ast = self.ast.borrow();
+        let node = ast
             .get(ident)
             .expect(format!("No node for ident {}", ident).as_str());
-        node.clone()
+        // Temporary compatibility code
+        todo!();
     }
 
     pub fn get_name(&self, ident: &Ident) -> Option<String> {
-        let name_id = VariableNameId::from(*ident);
-        self.eb.get_name(&name_id)
+        if let Node2::Variable { name, tensors: _ } = self.get_node2(ident) {
+            Some(name)
+        } else {
+            None
+        }
+    }
+
+    fn get_node2(&self, ident: &Ident) -> Node2<F, OP1, OP2> {
+        let ast = self.ast.borrow();
+        ast.get(ident)
+            .expect(format!("No node for ident {}", ident).as_str())
+            .clone()
     }
 
     /// Reset primals for variables. Keep adjoins, and primals for Parameters.
@@ -411,16 +425,15 @@ where
     }
 
     fn assert_ident_is_variable(&self, ident: &Ident) {
-        let id_to_node = self.eb.id_to_node.borrow();
-        let node = id_to_node.get(ident).expect("No such ident");
-        if let Node::Variable(_) = node {
+        let node = self.get_node2(ident);
+        if let Node2::Variable {
+            name: _,
+            tensors: _,
+        } = node
+        {
         } else {
-            panic!("Not a variable {}: {:?}", ident, node)
+            panic!("Not a variable {}: {:?}", ident, &node)
         }
-    }
-
-    pub fn get_variable_name(&self, name_id: &VariableNameId) -> String {
-        self.eb.get_name(name_id).expect("no name for such ident")
     }
 
     /// Call `add_adjoin` to update adjoin for a node with partial adjoin.

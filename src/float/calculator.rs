@@ -15,11 +15,7 @@ impl Calculator<FloatOperAry1, FloatOperAry2, f32> for FloatCalculator {
             Node::Const(value) => value,
             Node::Variable(name_id) => {
                 // Should have been already returned by ComputGraph.
-                panic!(
-                    "Variable not set in .forward(): {:?} {}",
-                    cg.get_variable_name(&name_id),
-                    name_id
-                )
+                panic!("Variable not set in .forward(): {}", name_id)
             }
             Node::Ary1(op, a) => match op {
                 FloatOperAry1::Cos => {
