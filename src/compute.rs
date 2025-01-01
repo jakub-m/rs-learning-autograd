@@ -214,7 +214,7 @@ where
     pub fn reset_state_for_next_epoch(&mut self) {
         {
             let mut data = self.data.borrow_mut();
-            for (ident, node) in data.iter_mut() {
+            for (_ident, node) in data.iter_mut() {
                 let new_node = match node {
                     NodeData::Variable {
                         primal: _,
@@ -230,13 +230,6 @@ where
                     },
                     NodeData::Unset => NodeData::Unset,
                 };
-                eprintln!(
-                    "reset_state_for_next_epoch {:?} {:?} {:?} ==> {:?}",
-                    ident,
-                    self.get_name(ident),
-                    node,
-                    new_node
-                );
                 *node = new_node;
             }
         }
@@ -340,11 +333,6 @@ where
             }
         }
 
-        //eprintln!(
-        //    "forward {} {:?} before compute_primal",
-        //    ident,
-        //    self.get_name(ident),
-        //);
         let calculated_primal = self.calculator.forward(self, ident);
 
         {

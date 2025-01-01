@@ -109,7 +109,6 @@ fn test_fit_simple_relu() {
     let learn_rate = 0.1;
 
     for i in 0..n_epochs {
-        eprintln!("epoch {}", i);
         cg.reset_state_for_next_epoch();
         print!("epoch {}", i);
         // Reset state of primals and adjoins.
