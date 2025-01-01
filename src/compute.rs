@@ -48,11 +48,12 @@ enum NodeData<F> {
     Variable {
         /// Primal (result of "forward").
         primal: Option<F>,
-        // Accumulated adjoin (result of "backward").
-        adjoin: Option<F>,
+        /// Accumulated adjoin (result of "backward"). The u32 is the count of how many "add adjoin" was run on this adjoin.
+        /// This count is needed to divide adjoin when applying learn rate.
+        adjoin: Option<(F, u32)>,
     },
     /// The node holds model parameters. The node parameters are not reset, they are modified on each epoch.
-    Parameter { primal: F, adjoin: Option<F> },
+    Parameter { primal: F, adjoin: Option<(F, u32)> },
     /// The node type was not yet set. Once set, the node type cannot be changed.
     Unset,
 }
@@ -282,17 +283,19 @@ where
             .collect();
         for ident in param_idents {
             let node_data = data.get_mut(&ident).unwrap();
-            let (primal, adjoin) = if let NodeData::Parameter { primal, adjoin } = node_data {
-                if let Some(adjoin) = adjoin.as_ref() {
-                    (primal, adjoin)
+            let (primal, (adjoin, adjoin_update_cnt)) =
+                if let NodeData::Parameter { primal, adjoin } = node_data {
+                    if let Some(adjoin) = adjoin.as_ref() {
+                        (primal, adjoin)
+                    } else {
+                        panic!("Adjoin missing for parameter!")
+                    }
                 } else {
-                    panic!("Adjoin missing for parameter!")
-                }
-            } else {
-                panic!("Expected Parameter!")
-            };
+                    panic!("Expected Parameter!")
+                };
             // -1.0 because Add and Mul is implemented but Sub not necessarily.
-            let new_primal = primal.clone() + adjoin.clone() * -1.0 * learning_rate;
+            let new_primal = primal.clone()
+                + adjoin.clone() * -1.0 * (learning_rate / *adjoin_update_cnt as f32);
             *primal = new_primal;
         }
     }
@@ -402,15 +405,15 @@ where
         // TODO try with mut self?
         let mut data = self.data.borrow_mut();
         let node_data = data.get_mut(ident).expect("Bug! Node data missing");
-        let maybe_old_adjoin : &mut Option<F> = match node_data {
+        let maybe_old_adjoin : &mut Option<(F, u32)> = match node_data {
             NodeData::Variable { primal: _, adjoin } => adjoin,
             NodeData::Parameter { primal: _, adjoin } => adjoin,
             NodeData::Unset => panic!("The node is Unset during add_adjoin, but it should be already a variable or parameter!"),
         };
-        let updated_adjoin: F = if let Some(old) = maybe_old_adjoin {
-            old.clone() + adjoin.clone()
+        let updated_adjoin: (F, u32) = if let Some((old_adjoin, old_cnt)) = maybe_old_adjoin {
+            (old_adjoin.clone() + adjoin.clone(), *old_cnt + 1)
         } else {
-            adjoin.clone()
+            (adjoin.clone(), 1)
         };
         *maybe_old_adjoin = Some(updated_adjoin)
     }
@@ -438,7 +441,7 @@ where
             NodeData::Unset => panic!("The node is Unset during .adjoin(), but it should be already a variable or parameter!"),
         };
         match maybe_adjoin {
-            Some(adjoin) => adjoin.clone(),
+            Some((adjoin, _cnt)) => adjoin.clone(),
             None => panic!(
                 "Adjoin missing for {}, maybe you didn't run backward?",
                 ident
