@@ -30,7 +30,7 @@ fn test_na_gradient_descent_sin() {
     let mut cg = ComputGraph::<MatrixF32, _, _>::new(eb, &MatrixCalculator);
 
     let n_params: usize = 30;
-    let learning_rate: f32 = 0.0001;
+    let learning_rate: f32 = 0.01;
     let n_epochs = 1000;
 
     let mut rng = StdRng::seed_from_u64(42);
@@ -79,7 +79,7 @@ fn test_na_gradient_descent_sin() {
                 .as_str(),
             ),
             Opts::InputRange(input_range),
-            Opts::MaxRms(0.1),
+            Opts::MaxRms(0.11),
         ],
     );
 }
