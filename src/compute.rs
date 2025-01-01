@@ -1,8 +1,7 @@
 //! This module abstracts how to compute values out of nodes.
 
-use std::{cell::RefCell, collections::BTreeMap};
-
 use crate::core_syntax::{ComputValue, Expr, ExprBuilder, Ident, Node, Operator, VariableNameId};
+use std::{cell::RefCell, collections::BTreeMap};
 
 impl AsRef<Ident> for Ident {
     fn as_ref(&self) -> &Ident {
@@ -29,8 +28,6 @@ where
     OP1: Operator,
     OP2: Operator,
 {
-    /// Variable values that are saved and restored upon reset.
-    saved_variables: RefCell<BTreeMap<Ident, F>>,
     /// Parameters. The parameters are updated during training based on adjoins and learning rate.
     data: RefCell<BTreeMap<Ident, NodeData<F>>>,
     eb: ExprBuilder<F, OP1, OP2>,
@@ -75,7 +72,6 @@ where
             data.insert(ident.clone(), NodeData::Unset);
         }
         ComputGraph {
-            saved_variables: RefCell::new(BTreeMap::new()),
             data: RefCell::new(data),
             eb,
             calculator,
@@ -117,7 +113,6 @@ where
     fn reset_parameter(&mut self, ident: &dyn AsRef<Ident>, value: F) -> Option<NodeData<F>> {
         let ident = ident.as_ref().clone();
         self.assert_ident_is_variable(&ident);
-        self.save_variable(&ident, value.clone());
 
         let mut data = self.data.borrow_mut();
         data.insert(
@@ -135,7 +130,6 @@ where
     pub fn reset_variable(&mut self, ident: &dyn AsRef<Ident>, value: F) -> Option<F> {
         let ident = ident.as_ref();
         self.assert_ident_is_variable(ident);
-        self.save_variable(ident, value.clone());
 
         let mut data = self.data.borrow_mut();
         if let Some(node_data) = data.get_mut(&ident) {
@@ -233,23 +227,7 @@ where
                 *node = new_node;
             }
         }
-        self.saved_variables = RefCell::new(BTreeMap::new());
-        //self.restore_parameters()
     }
-
-    //fn restore_parameters(&mut self) {
-    //    let params_vec: Vec<(Ident, F)>;
-    //    {
-    //        let params = self.params.borrow();
-    //        params_vec = params
-    //            .iter()
-    //            .map(|(ident, value)| (ident.clone(), value.clone()))
-    //            .collect();
-    //    }
-    //    for (ident, value) in params_vec {
-    //        self.set_variable(&ident, value);
-    //    }
-    //}
 
     pub fn update_params_lr(&mut self, learning_rate: f32) {
         let mut data = self.data.borrow_mut();
@@ -285,25 +263,6 @@ where
             *primal = new_primal;
         }
     }
-
-    fn save_variable(&mut self, ident: &Ident, value: F) {
-        let mut saved_variables = self.saved_variables.borrow_mut();
-        saved_variables.insert(ident.clone(), value);
-    }
-
-    //fn refill_primals_that_were_explicitly_set(&mut self) {
-    //    let saved_variables_vec: Vec<(Ident, F)>;
-    //    {
-    //        let saved_variables = self.saved_variables.borrow();
-    //        saved_variables_vec = saved_variables
-    //            .iter()
-    //            .map(|(ident, value)| (ident.clone(), value.clone()))
-    //            .collect();
-    //    }
-    //    for (ident, value) in saved_variables_vec {
-    //        self.reset_variable(&ident, value);
-    //    }
-    //}
 
     /// Forward pass, calculate primals.
     /// This operation is MUTABLE, i.e. it mutates the internal cache of the calculated values.
