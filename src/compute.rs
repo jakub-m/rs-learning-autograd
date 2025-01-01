@@ -32,7 +32,6 @@ where
     /// Variable values that are saved and restored upon reset.
     saved_variables: RefCell<BTreeMap<Ident, F>>,
     /// Parameters. The parameters are updated during training based on adjoins and learning rate.
-    params: RefCell<BTreeMap<Ident, F>>,
     data: RefCell<BTreeMap<Ident, NodeData<F>>>,
     eb: ExprBuilder<F, OP1, OP2>,
     calculator: &'a dyn Calculator<OP1, OP2, F>,
@@ -43,7 +42,7 @@ where
 /// - Variable - explicitly set by the user, an input variable. The variables are reset often.
 /// - Parameter - parameter of the model, that is updated during back-propagation. The parameters
 ///   are initialized once (to random values) and then updated at the end of each training epoch.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 enum NodeData<F> {
     /// The node holds a variable, like input variable. The variable is reset for every input.
     Variable {
@@ -83,7 +82,6 @@ where
         }
         ComputGraph {
             saved_variables: RefCell::new(BTreeMap::new()),
-            params: RefCell::new(BTreeMap::new()),
             data: RefCell::new(data),
             eb,
             calculator,
@@ -104,22 +102,37 @@ where
         }
     }
 
+    /// Fail if parameter already set.
     pub fn set_parameter(&mut self, ident: &dyn AsRef<Ident>, value: F) {
-        let ident = ident.as_ref();
-        self.assert_ident_is_variable(ident);
-        self.save_variable(ident, value.clone());
-        let old = self
-            .params
-            .borrow_mut()
-            .insert(ident.clone(), value.clone());
-        if let Some(old) = old {
-            panic!(
-                "Value for {:?} {} already set to {}",
-                self.get_name(ident),
-                ident.as_ref(),
-                old
-            )
+        let ident = ident.as_ref().clone();
+        if let Some(old) = self.reset_parameter(&ident, value) {
+            if let NodeData::Unset = old {
+            } else {
+                panic!(
+                    "Parameter {:?} {} already set to {:?}",
+                    self.get_name(&ident),
+                    &ident,
+                    &old
+                );
+            }
         }
+    }
+
+    /// Set Parameter but don't fail if the node was already set. For parameters, it's rather a low-level functionality
+    /// and `set_parameter` should be used instead.
+    fn reset_parameter(&mut self, ident: &dyn AsRef<Ident>, value: F) -> Option<NodeData<F>> {
+        let ident = ident.as_ref().clone();
+        self.assert_ident_is_variable(&ident);
+        self.save_variable(&ident, value.clone());
+
+        let mut data = self.data.borrow_mut();
+        data.insert(
+            ident,
+            NodeData::Parameter {
+                primal: value,
+                adjoin: None,
+            },
+        )
     }
 
     /// Set variable (primal) to some value. Do not fail if the variable is already set. Useful when
@@ -207,7 +220,7 @@ where
     pub fn reset_state_for_next_epoch(&mut self) {
         {
             let mut data = self.data.borrow_mut();
-            for (_, node) in data.iter_mut() {
+            for (ident, node) in data.iter_mut() {
                 let new_node = match node {
                     NodeData::Variable {
                         primal: _,
@@ -223,6 +236,13 @@ where
                     },
                     NodeData::Unset => NodeData::Unset,
                 };
+                eprintln!(
+                    "reset_state_for_next_epoch {:?} {:?} {:?} ==> {:?}",
+                    ident,
+                    self.get_name(ident),
+                    node,
+                    new_node
+                );
                 *node = new_node;
             }
         }
@@ -245,13 +265,35 @@ where
     //}
 
     pub fn update_params_lr(&mut self, learning_rate: f32) {
-        let mut params = self.params.borrow_mut();
-        let param_idents: Vec<Ident> = params.keys().map(|v| v.clone()).collect();
+        let mut data = self.data.borrow_mut();
+        let param_idents: Vec<Ident> = data
+            .iter()
+            .filter_map(|(ident, node_data)| {
+                if let NodeData::Parameter {
+                    primal: _,
+                    adjoin: _,
+                } = node_data
+                {
+                    Some(ident.clone())
+                } else {
+                    None
+                }
+            })
+            .collect();
         for ident in param_idents {
-            let p = params.get_mut(&ident).unwrap();
-            let ad = self.adjoin(&ident);
+            let node_data = data.get_mut(&ident).unwrap();
+            let (primal, adjoin) = if let NodeData::Parameter { primal, adjoin } = node_data {
+                if let Some(adjoin) = adjoin.as_ref() {
+                    (primal, adjoin)
+                } else {
+                    panic!("Adjoin missing for parameter!")
+                }
+            } else {
+                panic!("Expected Parameter!")
+            };
             // -1.0 because Add and Mul is implemented but Sub not necessarily.
-            *p = p.clone() + ad * -1.0 * learning_rate;
+            let new_primal = primal.clone() + adjoin.clone() * -1.0 * learning_rate;
+            *primal = new_primal;
         }
     }
 
@@ -302,11 +344,11 @@ where
             }
         }
 
-        eprintln!(
-            "forward {} {:?} before compute_primal",
-            ident,
-            self.get_name(ident),
-        );
+        //eprintln!(
+        //    "forward {} {:?} before compute_primal",
+        //    ident,
+        //    self.get_name(ident),
+        //);
         let calculated_primal = self.calculator.forward(self, ident);
 
         {

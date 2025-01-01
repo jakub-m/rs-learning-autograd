@@ -110,6 +110,10 @@ fn test_fit_simple_relu() {
         param_values[i] = 0.01 * (i as f32);
     }
 
+    for i in 0..params.len() {
+        cg.set_parameter(&params[i], param_values[i]);
+    }
+
     let n_epochs = 50;
     let learn_rate = 0.1;
 
@@ -117,17 +121,14 @@ fn test_fit_simple_relu() {
         eprintln!("epoch {}", i);
         cg.reset_state_for_next_epoch();
         print!("epoch {}", i);
-        print!("\tparams {:?}", param_values);
+        // print!("\tparams {:?}", param_values);
         // Reset state of primals and adjoins.
-        for i in 0..params.len() {
-            cg.set_parameter(&params[i], param_values[i]);
-        }
 
         let mut tot_loss = 0_f32;
         let mut n = 0.0_f32;
         for x_inp in input_range.into_iter() {
             n += 1.0;
-            eprintln!("x_inp {}", x_inp);
+            // eprintln!("x_inp {}", x_inp);
             cg.reset_state_for_next_input();
             cg.reset_variable(&x, x_inp);
             cg.reset_variable(&t, target_poly(x_inp));
@@ -141,9 +142,10 @@ fn test_fit_simple_relu() {
         print!("\ttot_loss {}", tot_loss);
         println!("");
 
-        for i in 0..param_values.len() {
-            param_values[i] = param_values[i] - (learn_rate * adjoins[i]);
-        }
+        //for i in 0..param_values.len() {
+        //    param_values[i] = param_values[i] - (learn_rate * adjoins[i]);
+        //}
+        cg.update_params_lr(learn_rate);
     }
 
     let mut df = |x_inp: f32| {
