@@ -50,6 +50,7 @@ make marimo
 
 # Possible TODOs
 
+- Allow setting initial parameter values in expression tree, so it's possible to create implicit parameters. like `eb.new_unnamed_parameter(Some("p0"), || rand())`
 - Implicit parameters in CNN, like in 32 filters.
 - Implement operations on tensors (not only 2d arrays) to support CNN.
 - Figure that `(a-b)*(a-b)` are the same nodes, not two different ones. To do that, use hash of node, instead of incremental id.
