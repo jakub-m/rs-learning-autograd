@@ -34,17 +34,16 @@ fn test_gradient_descent_simple() {
     let [x, a, t, y, loss] = [x, a, t, y, loss].map(|expr| expr.ident());
     let mut cg = ComputGraph::<f32, _, _>::new(eb, &FloatCalculator);
 
-    // Set initial parameter values (some "random" values).
-    let mut param_value_a = 0.1;
     let n_epochs = 1000;
     let learn_rate = 0.1;
+
+    // Set equation ("model") parameters.
+    cg.set_parameter(&a, 0.1);
+
     for i in 0..n_epochs {
         print!("epoch {}", i);
-        print!("\tparams {:?}", param_value_a);
         // Reset state of primals and adjoins.
         cg.reset_state_for_next_epoch();
-        // Set equation ("model") parameters.
-        cg.set_variable(&a, param_value_a);
 
         // Set input value (x) and target y for that input.
         let mut tot_loss = 0_f32;
@@ -61,12 +60,9 @@ fn test_gradient_descent_simple() {
         }
 
         // Take adjoins per parameter and apply the gradient to input parameters.
-        let adjoin_a = cg.adjoin(&a) / n;
         tot_loss = tot_loss / n;
-        print!("\tadjoins {}", adjoin_a);
         print!("\ttot_loss {}", tot_loss);
-
-        param_value_a = param_value_a - (learn_rate * adjoin_a);
+        cg.update_params_lr(learn_rate);
         println!("");
     } // end of epoch
 
@@ -104,14 +100,9 @@ fn test_fit_simple_relu() {
     let [x, y, t, loss] = [x, y, t, loss].map(|p| p.ident());
     let params = params.map(|p| p.ident());
     let mut cg = ComputGraph::<f32, _, _>::new(eb, &FloatCalculator);
-    let mut param_values = params.map(|_| 0.0_f32);
-
-    for i in 0..param_values.len() {
-        param_values[i] = 0.01 * (i as f32);
-    }
 
     for i in 0..params.len() {
-        cg.set_parameter(&params[i], param_values[i]);
+        cg.set_parameter(&params[i], 0.01 * (i as f32));
     }
 
     let n_epochs = 50;
@@ -121,14 +112,12 @@ fn test_fit_simple_relu() {
         eprintln!("epoch {}", i);
         cg.reset_state_for_next_epoch();
         print!("epoch {}", i);
-        // print!("\tparams {:?}", param_values);
         // Reset state of primals and adjoins.
 
         let mut tot_loss = 0_f32;
         let mut n = 0.0_f32;
         for x_inp in input_range.into_iter() {
             n += 1.0;
-            // eprintln!("x_inp {}", x_inp);
             cg.reset_state_for_next_input();
             cg.reset_variable(&x, x_inp);
             cg.reset_variable(&t, target_poly(x_inp));
@@ -142,9 +131,6 @@ fn test_fit_simple_relu() {
         print!("\ttot_loss {}", tot_loss);
         println!("");
 
-        //for i in 0..param_values.len() {
-        //    param_values[i] = param_values[i] - (learn_rate * adjoins[i]);
-        //}
         cg.update_params_lr(learn_rate);
     }
 

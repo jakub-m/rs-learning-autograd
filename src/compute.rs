@@ -58,13 +58,6 @@ enum NodeData<F> {
     Unset,
 }
 
-//impl<F> Default for NodeData<F> {
-//    fn default() -> Self {
-//        todo!(); // remove, not needed
-//        NodeData::Unset
-//    }
-//}
-
 impl<'a, F, OP1, OP2> ComputGraph<'a, F, OP1, OP2>
 where
     F: ComputValue,
