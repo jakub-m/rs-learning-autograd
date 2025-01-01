@@ -41,7 +41,7 @@ impl Display for Ident {
 /// Some nodes are variables, and those variables have names stored aside. VariableNameId
 /// points to that unique name. The type is only to distinguish [Ident] from the variable name.
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Debug, Hash)]
-pub struct VariableNameId(Ident);
+pub struct VariableNameId(Ident); // TODO make it private or not public at least?
 
 impl Display for VariableNameId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

@@ -29,7 +29,10 @@ where
     OP2: Operator,
 {
     /// Parameters. The parameters are updated during training based on adjoins and learning rate.
+    /// Deprecate.
     data: RefCell<BTreeMap<Ident, NodeData<F>>>,
+    ast: RefCell<BTreeMap<Ident, Node2<F, OP1, OP2>>>,
+    /// Deprecate.
     eb: ExprBuilder<F, OP1, OP2>,
     calculator: &'a dyn Calculator<OP1, OP2, F>,
 }
@@ -55,6 +58,55 @@ enum NodeData<F> {
     Unset,
 }
 
+enum Node2<F, OP1, OP2>
+where
+    F: ComputValue,
+    OP1: Operator,
+    OP2: Operator,
+{
+    Unset,
+    Const(F),
+    Variable {
+        name: String,
+        tensors: Tensors<F>,
+    },
+    Parameter {
+        name: Option<String>,
+        tensors: Tensors<F>,
+    },
+    Ary1 {
+        oper: OP1,
+        arg1: Ident,
+        tensors: Tensors<F>,
+    },
+    Ary2 {
+        oper: OP2,
+        arg1: Ident,
+        arg2: Ident,
+        tensors: Tensors<F>,
+    },
+}
+
+struct Tensors<F>
+where
+    F: ComputValue,
+{
+    primal: Option<F>,
+    adjoin: Option<(F, u32)>,
+}
+
+impl<F> Default for Tensors<F>
+where
+    F: ComputValue,
+{
+    fn default() -> Self {
+        Self {
+            primal: Default::default(),
+            adjoin: Default::default(),
+        }
+    }
+}
+
 impl<'a, F, OP1, OP2> ComputGraph<'a, F, OP1, OP2>
 where
     F: ComputValue,
@@ -71,8 +123,39 @@ where
         for (ident, _) in eb.id_to_node.borrow().iter() {
             data.insert(ident.clone(), NodeData::Unset);
         }
+
+        let mut ast: BTreeMap<Ident, Node2<F2, OP1, OP2>> = BTreeMap::new();
+        // Translate the expression tree constructed by the user to the one used internally with state-per-node.
+        for (ident, expr_node) in eb.id_to_node.borrow().iter() {
+            let tensors = Tensors::default();
+            let new_node: Node2<F2, OP1, OP2> = match expr_node {
+                Node::Const(value) => Node2::Const(value.clone()),
+                Node::Variable(name_id) => Node2::Variable {
+                    name: eb
+                        .get_name(name_id)
+                        .expect("variable should have name but did not!"),
+                    tensors,
+                },
+                Node::Ary1(oper, arg1) => Node2::Ary1 {
+                    oper: *oper,
+                    arg1: *arg1,
+                    tensors,
+                },
+                Node::Ary2(oper, arg1, arg2) => Node2::Ary2 {
+                    oper: *oper,
+                    arg1: *arg1,
+                    arg2: *arg2,
+                    tensors,
+                },
+            };
+            if let Some(_) = ast.insert(*ident, new_node) {
+                panic!("Bug. ast node already set.")
+            }
+        }
+
         ComputGraph {
             data: RefCell::new(data),
+            ast: RefCell::new(ast),
             eb,
             calculator,
         }
