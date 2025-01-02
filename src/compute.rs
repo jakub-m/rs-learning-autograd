@@ -54,7 +54,7 @@ where
 //remove }
 
 #[derive(Debug, Clone)]
-enum Node2<F, OP1, OP2>
+pub enum Node2<F, OP1, OP2>
 where
     F: ComputValue,
     OP1: Operator,

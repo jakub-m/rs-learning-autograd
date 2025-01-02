@@ -2,7 +2,7 @@ use std::ops;
 
 use super::syntax::{MatrixF32, NaOperAry1, NaOperAry2};
 use crate::{
-    compute::{Calculator, ComputGraph},
+    compute::{Calculator, ComputGraph, Node2},
     core_syntax::{Ident, Node},
 };
 use ndarray as nd;
@@ -23,11 +23,17 @@ impl Calculator<NaOperAry1, NaOperAry2, MatrixF32> for MatrixCalculator {
         let node = cg.get_node(ident);
         match node {
             Node2::Const(value) => value,
-            Node::Variable(name_id) => panic!(
-                "Variable should have been set and already returned by ComputGraph! {}",
-                name_id
+            Node2::Variable { name, .. } => panic!(
+                "Variable {:?} should have been set and already returned by ComputGraph!",
+                name
             ),
-            Node::Ary1(op, a) => match op {
+            Node2::Parameter { name, .. } => panic!(
+                "Parameter {:?} should have been set and already returned by ComputGraph!",
+                name,
+            ),
+            Node2::Ary1 {
+                oper: op, arg1: a, ..
+            } => match op {
                 NaOperAry1::Relu => {
                     let primal = cg.forward(&a);
                     match &primal {
@@ -47,7 +53,12 @@ impl Calculator<NaOperAry1, NaOperAry2, MatrixF32> for MatrixCalculator {
                     }
                 }
             },
-            Node::Ary2(op, a, b) => match op {
+            Node2::Ary2 {
+                oper: op,
+                arg1: a,
+                arg2: b,
+                tensors,
+            } => match op {
                 NaOperAry2::Add => {
                     let a = cg.forward(&a);
                     let b = cg.forward(&b);
