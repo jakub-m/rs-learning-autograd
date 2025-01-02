@@ -22,7 +22,7 @@ impl Calculator<NaOperAry1, NaOperAry2, MatrixF32> for MatrixCalculator {
     ) -> MatrixF32 {
         let node = cg.get_node(ident);
         match node {
-            Node::Const(value) => value,
+            Node2::Const(value) => value,
             Node::Variable(name_id) => panic!(
                 "Variable should have been set and already returned by ComputGraph! {}",
                 name_id

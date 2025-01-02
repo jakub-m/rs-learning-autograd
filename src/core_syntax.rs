@@ -82,7 +82,7 @@ where
     /// A named variable.
     Variable(VariableNameId),
     /// An unnamed model parameter with some initial value.
-    // Parameter(F),
+    Parameter(F),
     /// Arity-1 operation, like ln or sin.
     Ary1(OP1, Ident),
     /// Arity-2 operation, like addition.
@@ -136,7 +136,7 @@ where
         let id_to_node = self.eb.id_to_node.borrow();
         match node {
             Node::Const(value) => write!(f, "{}", value)?,
-            // Node::Parameter(_) => write!(f, "param")?,
+            Node::Parameter(_) => write!(f, "param")?,
             Node::Variable(name_id) => {
                 let name = self
                     .eb
@@ -241,19 +241,16 @@ where
         Expr { eb: &self, ident }
     }
 
-    // /// Create a new parameter without name, but with initial value. Expression builder does not distinguish between
-    // /// variables and parameters, the parameter value is only used later when initializing [ComputeGraph].
-    // /// `new_unnamed_parameter` is useful for operations that introduce latent parameters.
-    // pub fn new_unnamed_parameter(
-    //     &'a self,
-    //     initializer: &dyn FnOnce() -> F,
-    // ) -> Expr<'a, F, OP1, OP2> {
-    //     let ident = self.new_ident();
-    //     let node = Node::Parameter(initializer);
-    //     let mut id_to_node = self.id_to_node.borrow_mut();
-    //     id_to_node.insert(ident, node);
-    //     Expr { eb: &self, ident }
-    // }
+    /// Create a new parameter without name, but with initial value.
+    /// The parameter value is only used later when initializing [ComputeGraph].
+    /// `new_parameter` is useful for operations that introduce latent parameters.
+    pub fn new_parameter(&'a self, value: F) -> Expr<'a, F, OP1, OP2> {
+        let ident = self.new_ident();
+        let node = Node::Parameter(value);
+        let mut id_to_node = self.id_to_node.borrow_mut();
+        id_to_node.insert(ident, node);
+        Expr { eb: &self, ident }
+    }
 
     pub fn register_node_get_expr(&'a self, node: Node<F, OP1, OP2>) -> Expr<'a, F, OP1, OP2> {
         let ident = self.register_node(node);

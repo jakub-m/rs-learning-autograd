@@ -159,11 +159,18 @@ where
             let tensors = Tensors::default();
             let new_node: Node2<F2, OP1, OP2> = match expr_node {
                 Node::Const(value) => Node2::Const(value.clone()),
+                Node::Parameter(initial_value) => Node2::Parameter {
+                    name: None,
+                    tensors: Tensors {
+                        primal: Some(initial_value.clone()),
+                        ..Default::default()
+                    },
+                },
                 Node::Variable(name_id) => Node2::Variable {
                     name: eb
                         .get_name(name_id)
                         .expect("variable should have name but did not!"),
-                    tmp_name_id: name_id.clone(),
+                    tmp_name_id: name_id.clone(), // TODO remove tmp_name_id
                     tensors,
                 },
                 Node::Ary1(oper, arg1) => Node2::Ary1 {
@@ -231,26 +238,11 @@ where
         }
     }
 
-    pub fn get_node(&self, ident: &Ident) -> Node<F, OP1, OP2> {
-        //let id_to_node = self.eb.id_to_node.borrow();
-        //let node = id_to_node
-        //    .get(ident)
-        //    .expect(format!("No node for ident {}", ident).as_str());
-        //node.clone()
+    pub fn get_node(&self, ident: &Ident) -> Node2<F, OP1, OP2> {
         let ast = self.ast.borrow();
-        let node = ast
-            .get(ident)
-            .expect(format!("No node for ident {}", ident).as_str());
-        // Temporary compatibility code
-        match node {
-            Node2::Const(value) => Node::Const(value.clone()),
-            Node2::Variable { tmp_name_id, .. } => Node::Variable(*tmp_name_id),
-            Node2::Parameter { .. } => panic!(),
-            Node2::Ary1 { oper, arg1, .. } => Node::Ary1(*oper, *arg1),
-            Node2::Ary2 {
-                oper, arg1, arg2, ..
-            } => Node::Ary2(*oper, *arg1, *arg2),
-        }
+        ast.get(ident)
+            .expect(format!("No node for ident {}", ident).as_str())
+            .clone()
     }
 
     pub fn get_name(&self, ident: &Ident) -> Option<String> {
