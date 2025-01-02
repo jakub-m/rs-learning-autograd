@@ -59,13 +59,13 @@ fn test_hf() {
 
     // Backward.
     cg.backward(&y);
-    assert_approx_eq!(cg.adjoin(&y) as f64, 1.0, eps);
-    assert_approx_eq!(cg.adjoin(&v4) as f64, 1.0, eps);
-    assert_approx_eq!(cg.adjoin(&v3) as f64, 1.0, eps);
-    assert_approx_eq!(cg.adjoin(&v2) as f64, -1.0, eps);
-    assert_approx_eq!(cg.adjoin(&v1) as f64, 1.0, eps);
-    assert_approx_eq!(cg.adjoin(&x2) as f64, 4.0, eps);
-    assert_approx_eq!(cg.adjoin(&x1) as f64, -4.33, eps);
+    assert_approx_eq!(cg.adjoin(&y).unwrap() as f64, 1.0, eps);
+    assert_approx_eq!(cg.adjoin(&v4).unwrap() as f64, 1.0, eps);
+    assert_approx_eq!(cg.adjoin(&v3).unwrap() as f64, 1.0, eps);
+    assert_approx_eq!(cg.adjoin(&v2).unwrap() as f64, -1.0, eps);
+    assert_approx_eq!(cg.adjoin(&v1).unwrap() as f64, 1.0, eps);
+    assert_approx_eq!(cg.adjoin(&x2).unwrap() as f64, 4.0, eps);
+    assert_approx_eq!(cg.adjoin(&x1).unwrap() as f64, -4.33, eps);
 }
 
 #[test]
@@ -86,7 +86,7 @@ fn sin_cos() {
         cg.set_variable(&x, x_inp);
         cg.forward(&y);
         cg.backward(&y);
-        cg.adjoin(&x)
+        cg.adjoin(&x).unwrap()
     };
     assert_function_and_derivative_similar(
         |x| (x * 30.0).sin() * (x.cos()),
@@ -113,7 +113,7 @@ fn test_pow() {
         cg.set_variable(&x, x_inp);
         cg.forward(&y);
         cg.backward(&y);
-        cg.adjoin(&x)
+        cg.adjoin(&x).unwrap()
     };
 
     assert_function_and_derivative_similar(

@@ -124,7 +124,7 @@ fn test_fit_simple_relu() {
             cg.backward(&loss);
         }
 
-        let adjoins = params.map(|p| cg.adjoin(&p) / n);
+        let adjoins = params.map(|p| cg.adjoin(&p).unwrap() / n);
         tot_loss = tot_loss / n;
         print!("\tadjoins {:?}", adjoins);
         print!("\ttot_loss {}", tot_loss);
@@ -209,7 +209,7 @@ fn test_relu_to_sin() {
 
         let adjoins: Vec<f32> = params
             .iter()
-            .map(|p| cg.adjoin(&p) / (x_count as f32))
+            .map(|p| cg.adjoin(&p).unwrap() / (x_count as f32))
             .collect();
 
         tot_loss = tot_loss / (x_count as f32);

@@ -83,6 +83,43 @@ where
     },
 }
 
+impl<F, OP1, OP2> Node2<F, OP1, OP2>
+where
+    F: ComputValue,
+    OP1: Operator,
+    OP2: Operator,
+{
+    fn tensors_as_ref(&self) -> Option<&Tensors<F>> {
+        match self {
+            Node2::Const(_) => None,
+            Node2::Variable { tensors, .. } => Some(tensors),
+            Node2::Parameter { tensors, .. } => Some(tensors),
+            Node2::Ary1 { tensors, .. } => Some(tensors),
+            Node2::Ary2 { tensors, .. } => Some(tensors),
+        }
+    }
+
+    fn tensors_as_mut(&mut self) -> Option<&mut Tensors<F>> {
+        match self {
+            Node2::Const(_) => None,
+            Node2::Variable { tensors, .. } => Some(tensors),
+            Node2::Parameter { tensors, .. } => Some(tensors),
+            Node2::Ary1 { tensors, .. } => Some(tensors),
+            Node2::Ary2 { tensors, .. } => Some(tensors),
+        }
+    }
+
+    fn primal_or_const(&self) -> Option<&F> {
+        match self {
+            Node2::Const(value) => Some(value),
+            Node2::Variable { tensors, .. } => tensors.primal.as_ref(),
+            Node2::Parameter { tensors, .. } => tensors.primal.as_ref(),
+            Node2::Ary1 { tensors, .. } => tensors.primal.as_ref(),
+            Node2::Ary2 { tensors, .. } => tensors.primal.as_ref(),
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 struct Tensors<F>
 where
@@ -323,13 +360,7 @@ where
             // First, try to return existing primal.
             let ast = self.ast.borrow_mut();
             let node = ast.get(&ident).expect("Bug: node is missing in forward()!");
-            let existing_primal = match node {
-                Node2::Const(value) => Some(value),
-                Node2::Variable { tensors, .. } => tensors.primal.as_ref(),
-                Node2::Parameter { tensors, .. } => tensors.primal.as_ref(),
-                Node2::Ary1 { tensors, .. } => tensors.primal.as_ref(),
-                Node2::Ary2 { tensors, .. } => tensors.primal.as_ref(),
-            };
+            let existing_primal = node.primal_or_const();
             if let Some(primal) = existing_primal {
                 return primal.clone();
             }
@@ -343,13 +374,9 @@ where
             let node = ast
                 .get_mut(&ident)
                 .expect("Bug: node is missing in forward()!");
-            let tensors_ref = match node {
-                Node2::Const(_) => panic!("Bug! Should have already returned Const!"),
-                Node2::Variable { tensors, .. } => tensors,
-                Node2::Parameter { tensors, .. } => tensors,
-                Node2::Ary1 { tensors, .. } => tensors,
-                Node2::Ary2 { tensors, .. } => tensors,
-            };
+            let tensors_ref = node
+                .tensors_as_mut()
+                .expect("Bug! If the node is Const, the value should have been already returned!");
 
             let old = tensors_ref.primal.replace(calculated_primal.clone());
             if let Some(old) = old {
@@ -376,50 +403,38 @@ where
     /// Call `add_adjoin` to update adjoin for a node with partial adjoin.
     pub fn add_adjoin(&self, ident: &Ident, adjoin: &F) {
         // TODO try with mut self?
-        let mut data = self.data.borrow_mut();
-        let node_data = data.get_mut(ident).expect("Bug! Node data missing");
-        let maybe_old_adjoin : &mut Option<(F, u32)> = match node_data {
-            NodeData::Variable { adjoin , ..} => adjoin,
-            NodeData::Parameter {  adjoin , ..} => adjoin,
-            NodeData::Unset => panic!("The node is Unset during add_adjoin, but it should be already a variable or parameter!"),
+        let mut ast = self.ast.borrow_mut();
+        let node = ast.get_mut(ident).unwrap();
+        let tensors_ref = if let Some(r) = node.tensors_as_mut() {
+            r
+        } else {
+            // The node type (e.g. Const) has no tensor, so nothing to do here, return.
+            return;
         };
-        let updated_adjoin: (F, u32) = if let Some((old_adjoin, old_cnt)) = maybe_old_adjoin {
-            (old_adjoin.clone() + adjoin.clone(), *old_cnt + 1)
+        let updated_adjoin: (F, u32) = if let Some((old_adjoin, old_cnt)) = &tensors_ref.adjoin {
+            (old_adjoin.clone() + adjoin.clone(), old_cnt + 1)
         } else {
             (adjoin.clone(), 1)
         };
-        *maybe_old_adjoin = Some(updated_adjoin)
+        tensors_ref.adjoin.replace(updated_adjoin);
     }
 
     pub fn primal(&self, ident: &Ident) -> F {
-        let data = self.data.borrow();
-        let node_data = data.get(ident).expect("Bug! Node data missing");
-        match node_data {
-            NodeData::Variable { primal, .. } => if let Some(primal) = primal {
-                primal.clone()
-            } else {
-                panic!("Primal missing for {}", &ident)
-            },
-            NodeData::Parameter { primal, .. } => primal.clone(),
-            NodeData::Unset => panic!("The node is Unset during .primal(), but it should be already a variable or parameter!"),
-        }
+        let ast = self.ast.borrow();
+        let node = ast.get(ident).unwrap();
+        node.primal_or_const()
+            .expect(format!("Primal or const missing for {}", &ident).as_str())
+            .clone()
     }
 
-    pub fn adjoin(&self, ident: &Ident) -> F {
-        let data = self.data.borrow();
-        let node_data = data.get(ident).expect("Bug: node data missing!");
-        let maybe_adjoin = match node_data {
-            NodeData::Variable {  adjoin , ..} => adjoin,
-            NodeData::Parameter {  adjoin , ..} => adjoin,
-            NodeData::Unset => panic!("The node is Unset during .adjoin(), but it should be already a variable or parameter!"),
-        };
-        match maybe_adjoin {
-            Some((adjoin, _cnt)) => adjoin.clone(),
-            None => panic!(
-                "Adjoin missing for {}, maybe you didn't run backward?",
-                ident
-            ),
-        }
+    /// If returns None it means that either the node type does not have adjoin (Const), or there
+    /// are no adjoins yet because backward was not run.
+    pub fn adjoin(&self, ident: &Ident) -> Option<F> {
+        let ast = self.ast.borrow();
+        let node = ast.get(ident).unwrap();
+        let tensors = node.tensors_as_ref()?;
+        let (adjoin, _) = tensors.adjoin.clone()?;
+        Some(adjoin)
     }
 }
 
@@ -487,7 +502,7 @@ mod tests {
         cg.set_variable(&x2, -4.0);
         cg.forward(&y);
         cg.backward(&y);
-        assert_eq!(cg.adjoin(&x1), -4.0); // not sure if this is ok
+        assert_eq!(cg.adjoin(&x1), Some(-4.0)); // not sure if this value is ok
     }
 
     fn new_eb() -> ExprBuilder<f32, FloatOperAry1, FloatOperAry2> {

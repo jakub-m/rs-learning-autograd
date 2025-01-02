@@ -53,7 +53,7 @@ fn sum_relu_func() {
 
         // return sum and not .v(), since the node after m is a matrix, not single value, and x contributes to
         // each field of that matrix.
-        cg.adjoin(&x).m().unwrap().sum()
+        cg.adjoin(&x).unwrap().m().unwrap().sum()
     };
 
     assert_function_and_derivative_similar(

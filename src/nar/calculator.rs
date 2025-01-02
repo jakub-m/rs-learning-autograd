@@ -325,15 +325,15 @@ mod tests {
 
         // TODO: check by hand that those adjoins are correct.
         assert_eq!(
-            cb.adjoin(&a).m(),
+            cb.adjoin(&a).unwrap().m(),
             Some(&nd::ArrayD::from_elem(sh2x2(), 1.0))
         );
         assert_eq!(
-            cb.adjoin(&b).m(),
+            cb.adjoin(&b).unwrap().m(),
             Some(&nd::ArrayD::from_elem(sh2x2(), 3.0))
         );
         assert_eq!(
-            cb.adjoin(&c).m(),
+            cb.adjoin(&c).unwrap().m(),
             Some(&nd::ArrayD::from_elem(sh2x2(), 2.0))
         );
     }
@@ -356,7 +356,7 @@ mod tests {
         cb.backward(&y);
 
         assert_eq!(
-            cb.adjoin(&a).m(),
+            cb.adjoin(&a).unwrap().m(),
             Some(&nd::ArrayD::from_shape_vec(sh2x2(), vec![0.0, 0.0, 0.0, 1.0]).unwrap())
         );
     }
@@ -379,7 +379,7 @@ mod tests {
         cb.backward(&y);
 
         assert_eq!(
-            cb.adjoin(&a).m(),
+            cb.adjoin(&a).unwrap().m(),
             Some(&nd::ArrayD::from_shape_vec(sh2x2(), vec![-2.0, 0.0, 2.0, 4.0]).unwrap())
         );
     }
@@ -396,7 +396,7 @@ mod tests {
         cb.forward(&y);
         cb.backward(&y);
 
-        assert_eq!(cb.adjoin(&a).v(), Some(3.0 * 3.0_f32.powi(2)));
+        assert_eq!(cb.adjoin(&a).unwrap().v(), Some(3.0 * 3.0_f32.powi(2)));
     }
 
     #[test]
@@ -417,7 +417,7 @@ mod tests {
         cb.backward(&y);
 
         assert_eq!(actual_forward_sum, MatrixF32::V(2.0));
-        assert_eq!(cb.adjoin(&a), MatrixF32::V(1.0),);
+        assert_eq!(cb.adjoin(&a).unwrap(), MatrixF32::V(1.0),);
     }
 
     fn new_eb() -> ExprBuilder<MatrixF32, NaOperAry1, NaOperAry2> {
