@@ -278,11 +278,12 @@ where
     }
 
     pub fn update_params_lr(&mut self, learning_rate: f32) {
-        let mut data = self.data.borrow_mut();
-        let param_idents: Vec<Ident> = data
+        let mut ast = self.ast.borrow_mut();
+        // TODO make it a single for loop.
+        let param_idents: Vec<Ident> = ast
             .iter()
             .filter_map(|(ident, node_data)| {
-                if let NodeData::Parameter { .. } = node_data {
+                if let Node2::Parameter { .. } = node_data {
                     Some(ident.clone())
                 } else {
                     None
@@ -290,21 +291,27 @@ where
             })
             .collect();
         for ident in param_idents {
-            let node_data = data.get_mut(&ident).unwrap();
-            let (primal, (adjoin, adjoin_update_cnt)) =
-                if let NodeData::Parameter { primal, adjoin } = node_data {
-                    if let Some(adjoin) = adjoin.as_ref() {
-                        (primal, adjoin)
-                    } else {
-                        panic!("Adjoin missing for parameter!")
-                    }
-                } else {
-                    panic!("Expected Parameter!")
-                };
+            let node = ast.get_mut(&ident).unwrap();
+            let old_primal: &mut F;
+            let adjoin: F;
+            let adjoin_update_cnt: u32;
+            if let Node2::Parameter { name, tensors } = node {
+                old_primal = tensors
+                    .primal
+                    .as_mut()
+                    .expect(format!("primal missing for variable {:?}", name).as_str());
+                (adjoin, adjoin_update_cnt) = tensors
+                    .adjoin
+                    .take()
+                    .expect(format!("adjoin missing for variable {:?}", name).as_str());
+            } else {
+                panic!("Expected Parameter!")
+            }
+
             // -1.0 because Add and Mul is implemented but Sub not necessarily.
-            let new_primal = primal.clone()
-                + adjoin.clone() * -1.0 * (learning_rate / *adjoin_update_cnt as f32);
-            *primal = new_primal;
+            let new_primal = old_primal.clone()
+                + adjoin.clone() * -1.0 * (learning_rate / adjoin_update_cnt as f32);
+            *old_primal = new_primal;
         }
     }
 
@@ -313,46 +320,41 @@ where
     pub fn forward(&self, ident: &dyn AsRef<Ident>) -> F {
         let ident = ident.as_ref();
         {
-            let mut data = self.data.borrow_mut();
-            let node_data = data
-                .get(&ident)
-                .expect("Bug: node data is missing in forward()!");
-
-            let new_node_data = match node_data {
-                NodeData::Variable { primal, .. } => match primal {
-                    Some(primal) => return primal.clone(),
-                    None => None,
-                },
-
-                NodeData::Parameter { primal, .. } => return primal.clone(),
-                // If you run .forward() on a node, and the node is Unset, then assume the node is a Variable (e.g. some final "y" in y=ax+b).
-                NodeData::Unset => Some(NodeData::Variable {
-                    primal: Option::<F>::None,
-                    adjoin: None,
-                }),
+            // First, try to return existing primal.
+            let ast = self.ast.borrow_mut();
+            let node = ast.get(&ident).expect("Bug: node is missing in forward()!");
+            let existing_primal = match node {
+                Node2::Const(value) => Some(value),
+                Node2::Variable { tensors, .. } => tensors.primal.as_ref(),
+                Node2::Parameter { tensors, .. } => tensors.primal.as_ref(),
+                Node2::Ary1 { tensors, .. } => tensors.primal.as_ref(),
+                Node2::Ary2 { tensors, .. } => tensors.primal.as_ref(),
             };
-            if let Some(new_node_data) = new_node_data {
-                data.insert(ident.clone(), new_node_data).unwrap();
+            if let Some(primal) = existing_primal {
+                return primal.clone();
             }
         }
 
         let calculated_primal = self.calculator.forward(self, ident);
 
         {
-            let mut data = self.data.borrow_mut();
-            let node_data = data
+            // Insert calculated primal to ast tree.
+            let mut ast = self.ast.borrow_mut();
+            let node = ast
                 .get_mut(&ident)
-                .expect("Bug: node data is missing in forward()!");
-            let new_data: NodeData<F> = match node_data {
-                NodeData::Variable { primal, adjoin } => match primal {
-                    Some(old) => panic!("The value for {} already set to {}", ident, old),
-                    None => NodeData::Variable { primal: Some(calculated_primal.clone()), adjoin: adjoin.clone() }
-                    ,
-                },
-                NodeData::Parameter {..} => panic!("The node is Parameter but expected Variable!"),
-                NodeData::Unset => panic!("The node is Unset during forward, but it should be already a variable or parameter!"),
+                .expect("Bug: node is missing in forward()!");
+            let tensors_ref = match node {
+                Node2::Const(_) => panic!("Bug! Should have already returned Const!"),
+                Node2::Variable { tensors, .. } => tensors,
+                Node2::Parameter { tensors, .. } => tensors,
+                Node2::Ary1 { tensors, .. } => tensors,
+                Node2::Ary2 { tensors, .. } => tensors,
             };
-            *node_data = new_data;
+
+            let old = tensors_ref.primal.replace(calculated_primal.clone());
+            if let Some(old) = old {
+                panic!("The value for {} already set to {}", ident, old)
+            }
         }
         calculated_primal
     }
