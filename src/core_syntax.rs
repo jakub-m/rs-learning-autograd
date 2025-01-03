@@ -136,15 +136,14 @@ where
         let id_to_node = self.eb.id_to_node.borrow();
         match node {
             Node::Const(value) => write!(f, "{}", value)?,
-            Node::Parameter(_) => write!(f, "param")?,
+            Node::Parameter(name_id, _) => {
+                let name = name_id
+                    .and_then(|id| self.eb.get_name(&id))
+                    .unwrap_or("?".to_owned());
+                write!(f, "{}", name,)?;
+            }
             Node::Variable(name_id) => {
-                let name = self
-                    .eb
-                    .id_to_name
-                    .borrow()
-                    .get(name_id)
-                    .expect(format!("Variable with {} does not exist", name_id).as_str())
-                    .to_owned();
+                let name = self.eb.get_name(name_id).unwrap();
                 write!(f, "{}", name)?;
             }
             Node::Ary1(op, ident) => {
@@ -220,21 +219,7 @@ where
 
     pub fn new_variable(&'a self, name: &str) -> Expr<'a, F, OP1, OP2> {
         let ident = self.new_ident();
-        let name_id: NameId = ident.into();
-
-        let mut id_to_name = self.id_to_name.borrow_mut();
-        if let Some(old_name) = id_to_name.insert(name_id, name.to_owned()) {
-            panic!(
-                "Variable for  {:?} already exists with name {}",
-                ident, old_name
-            );
-        }
-
-        let mut name_set = self.name_set.borrow_mut();
-        if !name_set.insert(name.to_owned()) {
-            panic!("Variable with name {} already exists", name)
-        }
-
+        let name_id = self.register_name(&ident, name).unwrap();
         let node = Node::Variable(name_id);
         let mut id_to_node = self.id_to_node.borrow_mut();
         id_to_node.insert(ident, node);
@@ -245,16 +230,17 @@ where
     /// The parameter value is only used later when initializing [ComputeGraph].
     /// `new_parameter` is useful for operations that introduce latent parameters.
     pub fn new_parameter(&'a self, value: F) -> Expr<'a, F, OP1, OP2> {
-        todo!()
+        self.new_parameter_internal(None, value)
     }
 
     pub fn new_named_parameter(&'a self, name: &str, value: F) -> Expr<'a, F, OP1, OP2> {
-        todo!()
+        self.new_parameter_internal(Some(name), value)
     }
 
     fn new_parameter_internal(&'a self, name: Option<&str>, value: F) -> Expr<'a, F, OP1, OP2> {
         let ident = self.new_ident();
-        let node = Node::Parameter(value);
+        let name_id = name.map(|name| self.register_name(&ident, name).unwrap());
+        let node = Node::Parameter(name_id, value);
         let mut id_to_node = self.id_to_node.borrow_mut();
         id_to_node.insert(ident, node);
         Expr { eb: &self, ident }
@@ -268,6 +254,24 @@ where
     pub fn get_name(&self, name_id: &NameId) -> Option<String> {
         let id_to_name = self.id_to_name.borrow();
         id_to_name.get(name_id).map(|s| s.to_owned())
+    }
+
+    fn register_name(&self, ident: &Ident, name: &str) -> Result<NameId, String> {
+        let name_id: NameId = ident.clone().into();
+
+        let mut id_to_name = self.id_to_name.borrow_mut();
+        if let Some(old_name) = id_to_name.insert(name_id, name.to_owned()) {
+            return Err(format!(
+                "Same {:?} registered twice, old name {:?}!",
+                name_id, old_name
+            ));
+        }
+
+        let mut name_set = self.name_set.borrow_mut();
+        if !name_set.insert(name.to_owned()) {
+            return Err(format!("Variable with name {} already exists", name));
+        }
+        Ok(name_id)
     }
 
     /// register is a mutable operation on self.map. `register` is not explicitly mut, to allow Copy and

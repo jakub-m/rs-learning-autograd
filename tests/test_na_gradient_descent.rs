@@ -18,10 +18,17 @@ fn test_na_gradient_descent_sin() {
     let target_poly = |x: f32| x.sin();
     let input_range = FloatRange::new(-3.1, 3.2, 0.1);
 
+    let n_params: usize = 30;
+    let mut rng = StdRng::seed_from_u64(42);
+    let mut get_init_param = || {
+        let arr = nd::ArrayD::from_shape_fn(sh((n_params, 1)), |_| rng.gen_range(-3.0..3.0));
+        MatrixF32::new_m(arr)
+    };
+
     let eb = new_eb();
     let x = eb.new_variable("x");
-    let p0 = eb.new_variable("p0");
-    let p1 = eb.new_variable("p1");
+    let p0 = eb.new_named_parameter("p0", get_init_param());
+    let p1 = eb.new_named_parameter("p1", get_init_param());
     let y = ((x - p0).relu() * p1).sum();
     let t = eb.new_variable("t");
     let loss = (y - t).powi(2);
@@ -29,19 +36,8 @@ fn test_na_gradient_descent_sin() {
     let [x, p0, p1, y, t, loss] = [x, p0, p1, y, t, loss].map(|p| p.ident());
     let mut cg = ComputGraph::<MatrixF32, _, _>::new(eb, &MatrixCalculator);
 
-    let n_params: usize = 30;
     let learning_rate: f32 = 0.01;
     let n_epochs = 1000;
-
-    let mut rng = StdRng::seed_from_u64(42);
-    cg.set_parameter(
-        &p0,
-        nd::ArrayD::from_shape_fn(sh((n_params, 1)), |_| rng.gen_range(-3.0..3.0)).into(),
-    );
-    cg.set_parameter(
-        &p1,
-        nd::ArrayD::from_shape_fn(sh((n_params, 1)), |_| rng.gen_range(-3.0..3.0)).into(),
-    );
 
     for _ in 0..n_epochs {
         cg.reset_state_for_next_epoch();

@@ -1,6 +1,6 @@
 //! This module abstracts how to compute values out of nodes.
 
-use crate::core_syntax::{ComputValue, Expr, ExprBuilder, Ident, NameId, Node, Operator};
+use crate::core_syntax::{ComputValue, Expr, ExprBuilder, Ident, Node, Operator};
 use std::{cell::RefCell, collections::BTreeMap};
 
 impl AsRef<Ident> for Ident {
@@ -158,8 +158,8 @@ where
             let tensors = Tensors::default();
             let new_node: Node2<F2, OP1, OP2> = match expr_node {
                 Node::Const(value) => Node2::Const(value.clone()),
-                Node::Parameter(initial_value) => Node2::Parameter {
-                    name: None,
+                Node::Parameter(name_id, initial_value) => Node2::Parameter {
+                    name: name_id.and_then(|id| eb.get_name(&id)),
                     tensors: Tensors {
                         primal: Some(initial_value.clone()),
                         ..Default::default()
