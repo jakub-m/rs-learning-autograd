@@ -13,6 +13,7 @@ pub enum NaOperAry1 {
     PowI(i32),
     /// Add all the elements of the matrix and return a single value.
     Sum,
+    Conv2d,
 }
 
 impl Operator for NaOperAry1 {}
@@ -33,6 +34,7 @@ impl fmt::Display for NaOperAry1 {
             NaOperAry1::Relu => "relu".to_owned(),
             NaOperAry1::PowI(p) => format!("pow{}", p),
             NaOperAry1::Sum => "sum".to_owned(),
+            NaOperAry1::Conv2d => "conv2d[3x3]".to_owned(),
         };
         write!(f, "{}", s)
     }
@@ -158,6 +160,11 @@ impl<'a> ExprMatrix<'a> {
 
     pub fn sum(&self) -> ExprMatrix<'a> {
         let node = ExprNode::Ary1(NaOperAry1::Sum, self.ident());
+        self.register_and_continue_expr(node)
+    }
+
+    pub fn conv2d(&self) -> ExprMatrix<'a> {
+        let node = ExprNode::Ary1(NaOperAry1::Conv2d, self.ident());
         self.register_and_continue_expr(node)
     }
 }

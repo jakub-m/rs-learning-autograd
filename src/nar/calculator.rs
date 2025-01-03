@@ -31,50 +31,49 @@ impl Calculator<NaOperAry1, NaOperAry2, MatrixF32> for MatrixCalculator {
                 "Parameter {:?} should have been set and already returned by ComputGraph!",
                 name,
             ),
-            Node::Ary1 {
-                oper: op, arg1: a, ..
-            } => match op {
-                NaOperAry1::Relu => {
-                    let primal = cg.forward(&a);
-                    match &primal {
+            Node::Ary1 { oper: op, arg1, .. } => {
+                let primal = cg.forward(&arg1);
+                match op {
+                    NaOperAry1::Relu => match &primal {
                         MatrixF32::M(m) => MatrixF32::new_m(m.as_ref().clone().relu()),
                         MatrixF32::V(v) => MatrixF32::V(v.relu()),
-                    }
-                }
-                NaOperAry1::PowI(exp) => {
-                    let primal = cg.forward(&a);
-                    primal.powi(exp)
-                }
-                NaOperAry1::Sum => {
-                    let primal = cg.forward(&a);
-                    match primal {
+                    },
+                    NaOperAry1::PowI(exp) => primal.powi(exp),
+                    NaOperAry1::Sum => match primal {
                         MatrixF32::M(m) => MatrixF32::V(m.as_ref().sum()),
                         MatrixF32::V(_) => primal,
+                    },
+                    NaOperAry1::Conv2d => {
+                        let primal = primal.m().expect(
+                            format!(
+                                "Expected matrix as input to Conv2d {:?} but got {:?}",
+                                cg.get_name(ident),
+                                primal
+                            )
+                            .as_str(),
+                        );
+                        todo!();
                     }
                 }
-            },
+            }
             Node::Ary2 {
                 oper: op,
                 arg1: a,
                 arg2: b,
                 ..
-            } => match op {
-                NaOperAry2::Add => {
-                    let a = cg.forward(&a);
-                    let b = cg.forward(&b);
-                    match (a, b) {
+            } => {
+                let a = cg.forward(&a);
+                let b = cg.forward(&b);
+                match op {
+                    NaOperAry2::Add => match (a, b) {
                         (MatrixF32::M(m1), MatrixF32::M(m2)) => {
                             MatrixF32::new_m(m1.as_ref() + m2.as_ref())
                         }
                         (MatrixF32::M(m1), MatrixF32::V(v2)) => MatrixF32::new_m(m1.as_ref() + v2),
                         (MatrixF32::V(v1), MatrixF32::M(m2)) => MatrixF32::new_m(m2.as_ref() + v1),
                         (MatrixF32::V(v1), MatrixF32::V(v2)) => MatrixF32::V(v1 + v2),
-                    }
-                }
-                NaOperAry2::Sub => {
-                    let a = cg.forward(&a);
-                    let b = cg.forward(&b);
-                    match (a, b) {
+                    },
+                    NaOperAry2::Sub => match (a, b) {
                         (MatrixF32::M(m1), MatrixF32::M(m2)) => {
                             MatrixF32::new_m(m1.as_ref() - m2.as_ref())
                         }
@@ -86,14 +85,10 @@ impl Calculator<NaOperAry1, NaOperAry2, MatrixF32> for MatrixCalculator {
                             MatrixF32::new_m(m1 - m2.as_ref())
                         }
                         (MatrixF32::V(v1), MatrixF32::V(v2)) => MatrixF32::V(v1 - v2),
-                    }
+                    },
+                    NaOperAry2::MulComp => &a * &b,
                 }
-                NaOperAry2::MulComp => {
-                    let a = cg.forward(&a);
-                    let b = cg.forward(&b);
-                    &a * &b
-                }
-            },
+            }
         }
     }
 
@@ -126,6 +121,7 @@ impl Calculator<NaOperAry1, NaOperAry2, MatrixF32> for MatrixCalculator {
                 NaOperAry1::Sum => {
                     self.backward(cg, &v1, adjoin);
                 }
+                NaOperAry1::Conv2d => todo!(),
             },
             Node::Ary2 {
                 oper: op,
