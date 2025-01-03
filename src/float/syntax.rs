@@ -3,7 +3,7 @@
 use std::fmt;
 use std::ops;
 
-use crate::core_syntax::{ComputValue, DefaultAdjoin, Expr, ExprBuilder, Node, Operator};
+use crate::core_syntax::{ComputValue, DefaultAdjoin, Expr, ExprBuilder, ExprNode, Operator};
 
 #[derive(Copy, Clone, Debug)]
 pub enum FloatOperAry1 {
@@ -66,7 +66,7 @@ impl<'a> ops::Add for ExprFloat<'a> {
     type Output = ExprFloat<'a>;
 
     fn add(self, rhs: Self) -> Self::Output {
-        let node = Node::Ary2(FloatOperAry2::Add, self.ident, rhs.ident);
+        let node = ExprNode::Ary2(FloatOperAry2::Add, self.ident, rhs.ident);
         self.register_and_continue_expr(node)
     }
 }
@@ -75,7 +75,7 @@ impl<'a> ops::Sub for ExprFloat<'a> {
     type Output = ExprFloat<'a>;
 
     fn sub(self, rhs: Self) -> Self::Output {
-        let node = Node::Ary2(FloatOperAry2::Sub, self.ident, rhs.ident);
+        let node = ExprNode::Ary2(FloatOperAry2::Sub, self.ident, rhs.ident);
         self.register_and_continue_expr(node)
     }
 }
@@ -84,41 +84,41 @@ impl<'a> ops::Mul for ExprFloat<'a> {
     type Output = ExprFloat<'a>;
 
     fn mul(self, rhs: Self) -> Self::Output {
-        let node = Node::Ary2(FloatOperAry2::Mul, self.ident, rhs.ident);
+        let node = ExprNode::Ary2(FloatOperAry2::Mul, self.ident, rhs.ident);
         self.register_and_continue_expr(node)
     }
 }
 
 impl<'a> ExprFloat<'a> {
     pub fn cos(&self) -> ExprFloat<'a> {
-        let node = Node::Ary1(FloatOperAry1::Cos, self.ident);
+        let node = ExprNode::Ary1(FloatOperAry1::Cos, self.ident);
         self.register_and_continue_expr(node)
     }
 
     pub fn sin(&self) -> ExprFloat<'a> {
-        let node = Node::Ary1(FloatOperAry1::Sin, self.ident);
+        let node = ExprNode::Ary1(FloatOperAry1::Sin, self.ident);
         self.register_and_continue_expr(node)
     }
 
     pub fn ln(&self) -> ExprFloat<'a> {
-        let node = Node::Ary1(FloatOperAry1::Ln, self.ident);
+        let node = ExprNode::Ary1(FloatOperAry1::Ln, self.ident);
         self.register_and_continue_expr(node)
     }
 
     /// a^p where p is another expression.
     pub fn pow(&self, p: Self) -> ExprFloat<'a> {
-        let node = Node::Ary2(FloatOperAry2::Pow, self.ident, p.ident);
+        let node = ExprNode::Ary2(FloatOperAry2::Pow, self.ident, p.ident);
         self.register_and_continue_expr(node)
     }
 
     /// a^b where b is an integer.
     pub fn powi(&self, b: i32) -> ExprFloat<'a> {
-        let node = Node::Ary1(FloatOperAry1::PowI(b), self.ident);
+        let node = ExprNode::Ary1(FloatOperAry1::PowI(b), self.ident);
         self.register_and_continue_expr(node)
     }
 
     pub fn relu(&self) -> ExprFloat<'a> {
-        let node = Node::Ary1(FloatOperAry1::Relu, self.ident);
+        let node = ExprNode::Ary1(FloatOperAry1::Relu, self.ident);
         self.register_and_continue_expr(node)
     }
 }
@@ -130,7 +130,7 @@ pub trait AsConst {
 
 impl AsConst for f32 {
     fn as_const(self, eb: &ExprBuilder<f32, FloatOperAry1, FloatOperAry2>) -> ExprFloat {
-        let node = Node::Const(self);
+        let node = ExprNode::Const(self);
         eb.register_node_get_expr(node)
     }
 }

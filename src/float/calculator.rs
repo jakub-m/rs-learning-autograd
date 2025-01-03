@@ -1,5 +1,5 @@
 use crate::{
-    compute::{Calculator, ComputGraph, Node2},
+    compute::{Calculator, ComputGraph, Node},
     core_syntax::Ident,
 };
 
@@ -12,11 +12,11 @@ impl Calculator<FloatOperAry1, FloatOperAry2, f32> for FloatCalculator {
     fn forward(&self, cg: &ComputGraph<f32, FloatOperAry1, FloatOperAry2>, ident: &Ident) -> f32 {
         let node = cg.get_node(ident);
         match node {
-            Node2::Const(value) => value,
+            Node::Const(value) => value,
             // Variable and Parameter should have been already returned by ComputGraph.
-            Node2::Variable { name, .. } => panic!("Parameter not set in .forward(): {}", name),
-            Node2::Parameter { name, .. } => panic!("Parameter not set in .forward(): {:?}", name),
-            Node2::Ary1 {
+            Node::Variable { name, .. } => panic!("Parameter not set in .forward(): {}", name),
+            Node::Parameter { name, .. } => panic!("Parameter not set in .forward(): {:?}", name),
+            Node::Ary1 {
                 oper: op, arg1: a, ..
             } => match op {
                 FloatOperAry1::Cos => {
@@ -44,7 +44,7 @@ impl Calculator<FloatOperAry1, FloatOperAry2, f32> for FloatCalculator {
                     }
                 }
             },
-            Node2::Ary2 {
+            Node::Ary2 {
                 oper: op,
                 arg1: a,
                 arg2: b,
@@ -84,10 +84,10 @@ impl Calculator<FloatOperAry1, FloatOperAry2, f32> for FloatCalculator {
         cg.add_adjoin(ident, adjoin);
         let node = cg.get_node(ident);
         match node {
-            Node2::Const(_) => (),
-            Node2::Variable { .. } => (),
-            Node2::Parameter { .. } => (),
-            Node2::Ary1 {
+            Node::Const(_) => (),
+            Node::Variable { .. } => (),
+            Node::Parameter { .. } => (),
+            Node::Ary1 {
                 oper: op, arg1: v1, ..
             } => match op {
                 FloatOperAry1::Sin => {
@@ -115,7 +115,7 @@ impl Calculator<FloatOperAry1, FloatOperAry2, f32> for FloatCalculator {
                     self.backward(cg, &v1, &(adjoin * v1_ad));
                 }
             },
-            Node2::Ary2 {
+            Node::Ary2 {
                 oper: op,
                 arg1: v1,
                 arg2: v2,

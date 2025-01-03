@@ -67,9 +67,9 @@ impl<'a> From<&'a NameId> for &'a Ident {
 
 pub trait Operator: Clone + Copy + fmt::Debug + fmt::Display {}
 
-///A node in the expression tree.
+/// A node in the expression tree built by the user. The node is Copy to allow ergonomic syntax (i.e. like, adding the nodes).
 #[derive(Clone, Copy, Debug)]
-pub enum Node<F, OP1, OP2>
+pub enum ExprNode<F, OP1, OP2>
 where
     F: ComputValue,
     OP1: Operator,
@@ -118,7 +118,7 @@ where
     OP1: Operator,
     OP2: Operator,
 {
-    pub fn register_and_continue_expr(&self, node: Node<F, OP1, OP2>) -> Expr<'a, F, OP1, OP2> {
+    pub fn register_and_continue_expr(&self, node: ExprNode<F, OP1, OP2>) -> Expr<'a, F, OP1, OP2> {
         let ident = self.eb.register_node(node);
         Expr { ident, eb: self.eb }
     }
@@ -130,27 +130,27 @@ where
     OP1: Operator,
     OP2: Operator,
 {
-    fn fmt_node(&self, f: &mut fmt::Formatter<'_>, node: &Node<F, OP1, OP2>) -> fmt::Result {
+    fn fmt_node(&self, f: &mut fmt::Formatter<'_>, node: &ExprNode<F, OP1, OP2>) -> fmt::Result {
         let id_to_node = self.eb.id_to_node.borrow();
         match node {
-            Node::Const(value) => write!(f, "{}", value)?,
-            Node::Parameter(name_id, _) => {
+            ExprNode::Const(value) => write!(f, "{}", value)?,
+            ExprNode::Parameter(name_id, _) => {
                 let name = name_id
                     .and_then(|id| self.eb.get_name(&id))
                     .unwrap_or("?".to_owned());
                 write!(f, "{}", name,)?;
             }
-            Node::Variable(name_id) => {
+            ExprNode::Variable(name_id) => {
                 let name = self.eb.get_name(name_id).unwrap();
                 write!(f, "{}", name)?;
             }
-            Node::Ary1(op, ident) => {
+            ExprNode::Ary1(op, ident) => {
                 let node = id_to_node.get(ident).ok_or(fmt::Error)?;
                 write!(f, "{}(", op)?;
                 self.fmt_node(f, node)?;
                 write!(f, ")",)?;
             }
-            Node::Ary2(op, ident1, ident2) => {
+            ExprNode::Ary2(op, ident1, ident2) => {
                 let node1 = id_to_node.get(ident1).ok_or(fmt::Error)?;
                 let node2 = id_to_node.get(ident2).ok_or(fmt::Error)?;
                 write!(f, "(")?;
@@ -196,7 +196,7 @@ where
     OP2: Operator,
 {
     /// The map contains expression trees with references.
-    pub(super) id_to_node: RefCell<BTreeMap<Ident, Node<F, OP1, OP2>>>,
+    pub(super) id_to_node: RefCell<BTreeMap<Ident, ExprNode<F, OP1, OP2>>>,
     id_to_name: RefCell<BTreeMap<NameId, String>>,
     name_set: RefCell<HashSet<String>>,
 }
@@ -218,7 +218,7 @@ where
     pub fn new_variable(&'a self, name: &str) -> Expr<'a, F, OP1, OP2> {
         let ident = self.new_ident();
         let name_id = self.register_name(&ident, name).unwrap();
-        let node = Node::Variable(name_id);
+        let node = ExprNode::Variable(name_id);
         let mut id_to_node = self.id_to_node.borrow_mut();
         id_to_node.insert(ident, node);
         Expr { eb: &self, ident }
@@ -238,13 +238,13 @@ where
     fn new_parameter_internal(&'a self, name: Option<&str>, value: F) -> Expr<'a, F, OP1, OP2> {
         let ident = self.new_ident();
         let name_id = name.map(|name| self.register_name(&ident, name).unwrap());
-        let node = Node::Parameter(name_id, value);
+        let node = ExprNode::Parameter(name_id, value);
         let mut id_to_node = self.id_to_node.borrow_mut();
         id_to_node.insert(ident, node);
         Expr { eb: &self, ident }
     }
 
-    pub fn register_node_get_expr(&'a self, node: Node<F, OP1, OP2>) -> Expr<'a, F, OP1, OP2> {
+    pub fn register_node_get_expr(&'a self, node: ExprNode<F, OP1, OP2>) -> Expr<'a, F, OP1, OP2> {
         let ident = self.register_node(node);
         Expr { ident, eb: self }
     }
@@ -274,7 +274,7 @@ where
 
     /// register is a mutable operation on self.map. `register` is not explicitly mut, to allow Copy and
     /// ergonomic arithmetic syntax.
-    fn register_node(&self, node: Node<F, OP1, OP2>) -> Ident {
+    fn register_node(&self, node: ExprNode<F, OP1, OP2>) -> Ident {
         let ident = self.new_ident();
         let mut map = self.id_to_node.borrow_mut();
         map.insert(ident, node);

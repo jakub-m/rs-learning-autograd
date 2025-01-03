@@ -1,6 +1,6 @@
 //! This module abstracts how to compute values out of nodes.
 
-use crate::core_syntax::{ComputValue, Expr, ExprBuilder, Ident, Node, Operator};
+use crate::core_syntax::{ComputValue, Expr, ExprBuilder, ExprNode, Ident, Operator};
 use std::{cell::RefCell, collections::BTreeMap};
 
 impl AsRef<Ident> for Ident {
@@ -28,13 +28,13 @@ where
     OP1: Operator,
     OP2: Operator,
 {
-    ast: RefCell<BTreeMap<Ident, Node2<F, OP1, OP2>>>,
+    ast: RefCell<BTreeMap<Ident, Node<F, OP1, OP2>>>,
     calculator: &'a dyn Calculator<OP1, OP2, F>,
 }
 
 /// Node holds the abstract syntax tree structure, and all the numeric data related to the node in the computation graph.
 #[derive(Debug, Clone)]
-pub enum Node2<F, OP1, OP2>
+pub enum Node<F, OP1, OP2>
 where
     F: ComputValue,
     OP1: Operator,
@@ -65,7 +65,7 @@ where
     },
 }
 
-impl<F, OP1, OP2> Node2<F, OP1, OP2>
+impl<F, OP1, OP2> Node<F, OP1, OP2>
 where
     F: ComputValue,
     OP1: Operator,
@@ -73,31 +73,31 @@ where
 {
     fn tensors_as_ref(&self) -> Option<&Tensors<F>> {
         match self {
-            Node2::Const(_) => None,
-            Node2::Variable { tensors, .. } => Some(tensors),
-            Node2::Parameter { tensors, .. } => Some(tensors),
-            Node2::Ary1 { tensors, .. } => Some(tensors),
-            Node2::Ary2 { tensors, .. } => Some(tensors),
+            Node::Const(_) => None,
+            Node::Variable { tensors, .. } => Some(tensors),
+            Node::Parameter { tensors, .. } => Some(tensors),
+            Node::Ary1 { tensors, .. } => Some(tensors),
+            Node::Ary2 { tensors, .. } => Some(tensors),
         }
     }
 
     fn tensors_as_mut(&mut self) -> Option<&mut Tensors<F>> {
         match self {
-            Node2::Const(_) => None,
-            Node2::Variable { tensors, .. } => Some(tensors),
-            Node2::Parameter { tensors, .. } => Some(tensors),
-            Node2::Ary1 { tensors, .. } => Some(tensors),
-            Node2::Ary2 { tensors, .. } => Some(tensors),
+            Node::Const(_) => None,
+            Node::Variable { tensors, .. } => Some(tensors),
+            Node::Parameter { tensors, .. } => Some(tensors),
+            Node::Ary1 { tensors, .. } => Some(tensors),
+            Node::Ary2 { tensors, .. } => Some(tensors),
         }
     }
 
     fn primal_or_const(&self) -> Option<&F> {
         match self {
-            Node2::Const(value) => Some(value),
-            Node2::Variable { tensors, .. } => tensors.primal.as_ref(),
-            Node2::Parameter { tensors, .. } => tensors.primal.as_ref(),
-            Node2::Ary1 { tensors, .. } => tensors.primal.as_ref(),
-            Node2::Ary2 { tensors, .. } => tensors.primal.as_ref(),
+            Node::Const(value) => Some(value),
+            Node::Variable { tensors, .. } => tensors.primal.as_ref(),
+            Node::Parameter { tensors, .. } => tensors.primal.as_ref(),
+            Node::Ary1 { tensors, .. } => tensors.primal.as_ref(),
+            Node::Ary2 { tensors, .. } => tensors.primal.as_ref(),
         }
     }
 }
@@ -138,31 +138,31 @@ where
         eb: ExprBuilder<F2, OP1, OP2>,
         calculator: &'a dyn Calculator<OP1, OP2, F2>,
     ) -> ComputGraph<'a, F2, OP1, OP2> {
-        let mut ast: BTreeMap<Ident, Node2<F2, OP1, OP2>> = BTreeMap::new();
+        let mut ast: BTreeMap<Ident, Node<F2, OP1, OP2>> = BTreeMap::new();
         // Translate the expression tree constructed by the user to the one used internally with state-per-node.
         for (ident, expr_node) in eb.id_to_node.borrow().iter() {
             let tensors = Tensors::default();
-            let new_node: Node2<F2, OP1, OP2> = match expr_node {
-                Node::Const(value) => Node2::Const(value.clone()),
-                Node::Parameter(name_id, initial_value) => Node2::Parameter {
+            let new_node: Node<F2, OP1, OP2> = match expr_node {
+                ExprNode::Const(value) => Node::Const(value.clone()),
+                ExprNode::Parameter(name_id, initial_value) => Node::Parameter {
                     name: name_id.and_then(|id| eb.get_name(&id)),
                     tensors: Tensors {
                         primal: Some(initial_value.clone()),
                         ..Default::default()
                     },
                 },
-                Node::Variable(name_id) => Node2::Variable {
+                ExprNode::Variable(name_id) => Node::Variable {
                     name: eb
                         .get_name(name_id)
                         .expect("variable should have name but did not!"),
                     tensors,
                 },
-                Node::Ary1(oper, arg1) => Node2::Ary1 {
+                ExprNode::Ary1(oper, arg1) => Node::Ary1 {
                     oper: *oper,
                     arg1: *arg1,
                     tensors,
                 },
-                Node::Ary2(oper, arg1, arg2) => Node2::Ary2 {
+                ExprNode::Ary2(oper, arg1, arg2) => Node::Ary2 {
                     oper: *oper,
                     arg1: *arg1,
                     arg2: *arg2,
@@ -199,7 +199,7 @@ where
         let ident = ident.as_ref().clone();
         let mut ast = self.ast.borrow_mut();
         let node = ast.get_mut(&ident).unwrap();
-        if let Node2::Parameter { name, tensors } = node {
+        if let Node::Parameter { name, tensors } = node {
             if let Some(_) = tensors.primal.replace(value) {
                 panic!("Parameter {:?} already has primal set!", name);
             };
@@ -216,14 +216,14 @@ where
         let ident = ident.as_ref();
         let mut ast = self.ast.borrow_mut();
         let node = ast.get_mut(&ident).unwrap();
-        if let Node2::Variable { tensors, .. } = node {
+        if let Node::Variable { tensors, .. } = node {
             tensors.primal.replace(value)
         } else {
             panic!("Node is not a Variable!")
         }
     }
 
-    pub fn get_node(&self, ident: &Ident) -> Node2<F, OP1, OP2> {
+    pub fn get_node(&self, ident: &Ident) -> Node<F, OP1, OP2> {
         let ast = self.ast.borrow();
         ast.get(ident)
             .expect(format!("No node for ident {}", ident).as_str())
@@ -231,14 +231,14 @@ where
     }
 
     pub fn get_name(&self, ident: &Ident) -> Option<String> {
-        if let Node2::Variable { name, .. } = self.get_node2(ident) {
+        if let Node::Variable { name, .. } = self.get_node2(ident) {
             Some(name)
         } else {
             None
         }
     }
 
-    fn get_node2(&self, ident: &Ident) -> Node2<F, OP1, OP2> {
+    fn get_node2(&self, ident: &Ident) -> Node<F, OP1, OP2> {
         let ast = self.ast.borrow();
         ast.get(ident)
             .expect(format!("No node for ident {}", ident).as_str())
@@ -251,15 +251,15 @@ where
             let mut ast = self.ast.borrow_mut();
             for (_, node) in ast.iter_mut() {
                 match node {
-                    Node2::Const(_) => (),
-                    Node2::Variable { tensors, .. } => {
+                    Node::Const(_) => (),
+                    Node::Variable { tensors, .. } => {
                         tensors.primal.take();
                     }
-                    Node2::Parameter { .. } => (),
-                    Node2::Ary1 { tensors, .. } => {
+                    Node::Parameter { .. } => (),
+                    Node::Ary1 { tensors, .. } => {
                         tensors.primal.take();
                     }
-                    Node2::Ary2 { tensors, .. } => {
+                    Node::Ary2 { tensors, .. } => {
                         tensors.primal.take();
                     }
                 }
@@ -273,17 +273,17 @@ where
             let mut ast = self.ast.borrow_mut();
             for (_ident, node) in ast.iter_mut() {
                 match node {
-                    Node2::Const(_) => (),
-                    Node2::Variable { tensors, .. } => {
+                    Node::Const(_) => (),
+                    Node::Variable { tensors, .. } => {
                         *tensors = Tensors::default();
                     }
-                    Node2::Parameter { tensors, .. } => {
+                    Node::Parameter { tensors, .. } => {
                         tensors.adjoin.take();
                     }
-                    Node2::Ary1 { tensors, .. } => {
+                    Node::Ary1 { tensors, .. } => {
                         *tensors = Tensors::default();
                     }
-                    Node2::Ary2 { tensors, .. } => {
+                    Node::Ary2 { tensors, .. } => {
                         *tensors = Tensors::default();
                     }
                 }
@@ -297,7 +297,7 @@ where
         let param_idents: Vec<Ident> = ast
             .iter()
             .filter_map(|(ident, node_data)| {
-                if let Node2::Parameter { .. } = node_data {
+                if let Node::Parameter { .. } = node_data {
                     Some(ident.clone())
                 } else {
                     None
@@ -309,7 +309,7 @@ where
             let old_primal: &mut F;
             let adjoin: F;
             let adjoin_update_cnt: u32;
-            if let Node2::Parameter { name, tensors } = node {
+            if let Node::Parameter { name, tensors } = node {
                 old_primal = tensors
                     .primal
                     .as_mut()

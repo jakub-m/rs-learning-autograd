@@ -2,7 +2,7 @@ use std::ops;
 
 use super::syntax::{MatrixF32, NaOperAry1, NaOperAry2};
 use crate::{
-    compute::{Calculator, ComputGraph, Node2},
+    compute::{Calculator, ComputGraph, Node},
     core_syntax::Ident,
 };
 use ndarray as nd;
@@ -22,16 +22,16 @@ impl Calculator<NaOperAry1, NaOperAry2, MatrixF32> for MatrixCalculator {
     ) -> MatrixF32 {
         let node = cg.get_node(ident);
         match node {
-            Node2::Const(value) => value,
-            Node2::Variable { name, .. } => panic!(
+            Node::Const(value) => value,
+            Node::Variable { name, .. } => panic!(
                 "Variable {:?} should have been set and already returned by ComputGraph!",
                 name
             ),
-            Node2::Parameter { name, .. } => panic!(
+            Node::Parameter { name, .. } => panic!(
                 "Parameter {:?} should have been set and already returned by ComputGraph!",
                 name,
             ),
-            Node2::Ary1 {
+            Node::Ary1 {
                 oper: op, arg1: a, ..
             } => match op {
                 NaOperAry1::Relu => {
@@ -53,7 +53,7 @@ impl Calculator<NaOperAry1, NaOperAry2, MatrixF32> for MatrixCalculator {
                     }
                 }
             },
-            Node2::Ary2 {
+            Node::Ary2 {
                 oper: op,
                 arg1: a,
                 arg2: b,
@@ -106,10 +106,10 @@ impl Calculator<NaOperAry1, NaOperAry2, MatrixF32> for MatrixCalculator {
         cg.add_adjoin(ident, adjoin);
         let node = cg.get_node(ident);
         match node {
-            Node2::Const(_) => (),
-            Node2::Variable { .. } => (),
-            Node2::Parameter { .. } => (),
-            Node2::Ary1 {
+            Node::Const(_) => (),
+            Node::Variable { .. } => (),
+            Node::Parameter { .. } => (),
+            Node::Ary1 {
                 oper: op, arg1: v1, ..
             } => match op {
                 NaOperAry1::Relu => {
@@ -127,7 +127,7 @@ impl Calculator<NaOperAry1, NaOperAry2, MatrixF32> for MatrixCalculator {
                     self.backward(cg, &v1, adjoin);
                 }
             },
-            Node2::Ary2 {
+            Node::Ary2 {
                 oper: op,
                 arg1: v1,
                 arg2: v2,
