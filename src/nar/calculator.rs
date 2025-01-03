@@ -3,7 +3,7 @@ use std::ops;
 use super::syntax::{MatrixF32, NaOperAry1, NaOperAry2};
 use crate::{
     compute::{Calculator, ComputGraph, Node2},
-    core_syntax::{Ident, Node},
+    core_syntax::Ident,
 };
 use ndarray as nd;
 //use nalgebra as _na;
@@ -57,7 +57,7 @@ impl Calculator<NaOperAry1, NaOperAry2, MatrixF32> for MatrixCalculator {
                 oper: op,
                 arg1: a,
                 arg2: b,
-                tensors,
+                ..
             } => match op {
                 NaOperAry2::Add => {
                     let a = cg.forward(&a);
@@ -106,9 +106,12 @@ impl Calculator<NaOperAry1, NaOperAry2, MatrixF32> for MatrixCalculator {
         cg.add_adjoin(ident, adjoin);
         let node = cg.get_node(ident);
         match node {
-            Node::Const(_) => (),
-            Node::Variable(_) => (),
-            Node::Ary1(op, v1) => match op {
+            Node2::Const(_) => (),
+            Node2::Variable { .. } => (),
+            Node2::Parameter { .. } => (),
+            Node2::Ary1 {
+                oper: op, arg1: v1, ..
+            } => match op {
                 NaOperAry1::Relu => {
                     let primal = cg.primal(&v1);
                     let b = primal.backward_relu();
@@ -124,7 +127,12 @@ impl Calculator<NaOperAry1, NaOperAry2, MatrixF32> for MatrixCalculator {
                     self.backward(cg, &v1, adjoin);
                 }
             },
-            Node::Ary2(op, v1, v2) => match op {
+            Node2::Ary2 {
+                oper: op,
+                arg1: v1,
+                arg2: v2,
+                ..
+            } => match op {
                 NaOperAry2::Add => {
                     self.backward(cg, &v1, adjoin);
                     self.backward(cg, &v2, adjoin);
