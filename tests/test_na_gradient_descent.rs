@@ -33,7 +33,7 @@ fn test_na_gradient_descent_sin() {
     let t = eb.new_variable("t");
     let loss = (y - t).powi(2);
 
-    let [x, p0, p1, y, t, loss] = [x, p0, p1, y, t, loss].map(|p| p.ident());
+    let [x, y, t, loss] = [x, y, t, loss].map(|p| p.ident());
     let mut cg = ComputGraph::<MatrixF32, _, _>::new(eb, &MatrixCalculator);
 
     let learning_rate: f32 = 0.01;
