@@ -454,9 +454,9 @@ mod tests {
         let x4 = x1 + x2;
         let e = (x1 + x2) * x3 + x4;
 
-        let x1 = x1.ident();
-        let x2 = x2.ident();
-        let e = e.ident();
+        let x1 = x1.ident;
+        let x2 = x2.ident;
+        let e = e.ident;
         let mut cg = ComputGraph::<f32, FloatOperAry1, FloatOperAry2>::new(eb, &FloatCalculator);
         cg.set_variable(&x1, 3.0);
         cg.set_variable(&x2, 5.0);
@@ -471,9 +471,9 @@ mod tests {
         let x2 = eb.new_variable("x2");
         let y = x1 * x2;
 
-        let x1 = x1.ident();
-        let x2 = x2.ident();
-        let y = y.ident();
+        let x1 = x1.ident;
+        let x2 = x2.ident;
+        let y = y.ident;
         let mut cg = ComputGraph::<f32, FloatOperAry1, FloatOperAry2>::new(eb, &FloatCalculator);
         cg.set_variable(&x1, 3.0);
         cg.set_variable(&x2, -4.0);

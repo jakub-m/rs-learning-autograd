@@ -272,7 +272,7 @@ mod tests {
         let y = a + b * c;
         assert_eq!("(a + (b .* c))", format!("{}", y));
 
-        let [a, b, c, y] = [a, b, c, y].map(|p| p.ident());
+        let [a, b, c, y] = [a, b, c, y].map(|p| p.ident);
         let mut cb = new_cb(eb);
         cb.set_variable(&a, nd::ArrayD::from_elem(sh2x2(), 1.0_f32).into());
         cb.set_variable(&b, nd::ArrayD::from_elem(sh2x2(), 2.0_f32).into());
@@ -287,7 +287,7 @@ mod tests {
         let a = eb.new_variable("a");
         let y = a.relu();
 
-        let [a, y] = [a, y].map(|p| p.ident());
+        let [a, y] = [a, y].map(|p| p.ident);
         let mut cb = new_cb(eb);
         cb.set_variable(
             &a,
@@ -308,7 +308,7 @@ mod tests {
         let m = eb.new_variable("m");
         let v = eb.new_variable("v");
         let y = (m * (v + v) - v) * m;
-        let [m, v, y] = [m, v, y].map(|p| p.ident());
+        let [m, v, y] = [m, v, y].map(|p| p.ident);
         let mut cb = new_cb(eb);
         cb.set_variable(
             &m,
@@ -330,7 +330,7 @@ mod tests {
         let c = eb.new_variable("c");
         let y = a + b * c;
 
-        let [a, b, c, y] = [a, b, c, y].map(|p| p.ident());
+        let [a, b, c, y] = [a, b, c, y].map(|p| p.ident);
         let mut cb = new_cb(eb);
         cb.set_variable(&a, nd::ArrayD::from_elem(sh2x2(), 1.0_f32).into());
         cb.set_variable(&b, nd::ArrayD::from_elem(sh2x2(), 2.0_f32).into());
@@ -359,7 +359,7 @@ mod tests {
         let a = eb.new_variable("a");
         let y = a.relu();
 
-        let [a, y] = [a, y].map(|p| p.ident());
+        let [a, y] = [a, y].map(|p| p.ident);
         let mut cb = new_cb(eb);
         cb.set_variable(
             &a,
@@ -382,7 +382,7 @@ mod tests {
         let a = eb.new_variable("a");
         let y = a.powi(2);
 
-        let [a, y] = [a, y].map(|p| p.ident());
+        let [a, y] = [a, y].map(|p| p.ident);
         let mut cb = new_cb(eb);
         cb.set_variable(
             &a,
@@ -405,7 +405,7 @@ mod tests {
         let a = eb.new_variable("a");
         let y = a.powi(3);
 
-        let [a, y] = [a, y].map(|p| p.ident());
+        let [a, y] = [a, y].map(|p| p.ident);
         let mut cb = new_cb(eb);
         cb.set_variable(&a, MatrixF32::V(3.0));
         cb.forward(&y);
@@ -420,7 +420,7 @@ mod tests {
         let a = eb.new_variable("a");
         let y = a.sum();
 
-        let [a, y] = [a, y].map(|p| p.ident());
+        let [a, y] = [a, y].map(|p| p.ident);
         let mut cb = new_cb(eb);
         cb.set_variable(
             &a,

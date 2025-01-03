@@ -98,8 +98,10 @@ where
 {
     pub ident: Ident, // TODO make ident private? or remove ident() method?
 
-    // eb cannot be mut because mut is not Clone, therefore is not Copy, and we want Copy to be able to do `a + b` on those expressions.
-    eb: &'a ExprBuilder<F, OP1, OP2>,
+    // `eb` cannot be mut because mut is not Clone, therefore is not Copy, and we want Copy to be able
+    // to do `a + b` on those expressions.
+    // `eb` is pub so it's possible to create latent parameters.
+    pub eb: &'a ExprBuilder<F, OP1, OP2>,
 }
 
 /// When I used `Copy` with `derive`, `ExprDMatrix` was not Copy :( Need to figure out why. Possibly related to
@@ -161,10 +163,6 @@ where
             }
         };
         Ok(())
-    }
-
-    pub fn ident(&self) -> Ident {
-        self.ident
     }
 }
 

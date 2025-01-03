@@ -149,22 +149,22 @@ type ExprMatrix<'a> = Expr<'a, MatrixF32, NaOperAry1, NaOperAry2>;
 
 impl<'a> ExprMatrix<'a> {
     pub fn relu(&self) -> ExprMatrix<'a> {
-        let node = ExprNode::Ary1(NaOperAry1::Relu, self.ident());
+        let node = ExprNode::Ary1(NaOperAry1::Relu, self.ident);
         self.register_and_continue_expr(node)
     }
 
     pub fn powi(&self, p: i32) -> ExprMatrix<'a> {
-        let node = ExprNode::Ary1(NaOperAry1::PowI(p), self.ident());
+        let node = ExprNode::Ary1(NaOperAry1::PowI(p), self.ident);
         self.register_and_continue_expr(node)
     }
 
     pub fn sum(&self) -> ExprMatrix<'a> {
-        let node = ExprNode::Ary1(NaOperAry1::Sum, self.ident());
+        let node = ExprNode::Ary1(NaOperAry1::Sum, self.ident);
         self.register_and_continue_expr(node)
     }
 
     pub fn conv2d(&self) -> ExprMatrix<'a> {
-        let node = ExprNode::Ary1(NaOperAry1::Conv2d, self.ident());
+        let node = ExprNode::Ary1(NaOperAry1::Conv2d, self.ident);
         self.register_and_continue_expr(node)
     }
 }
@@ -173,7 +173,7 @@ impl<'a> ops::Add for ExprMatrix<'a> {
     type Output = ExprMatrix<'a>;
 
     fn add(self, rhs: Self) -> Self::Output {
-        let node = ExprNode::Ary2(NaOperAry2::Add, self.ident(), rhs.ident());
+        let node = ExprNode::Ary2(NaOperAry2::Add, self.ident, rhs.ident);
         self.register_and_continue_expr(node)
     }
 }
@@ -182,7 +182,7 @@ impl<'a> ops::Sub for ExprMatrix<'a> {
     type Output = ExprMatrix<'a>;
 
     fn sub(self, rhs: Self) -> Self::Output {
-        let node = ExprNode::Ary2(NaOperAry2::Sub, self.ident(), rhs.ident());
+        let node = ExprNode::Ary2(NaOperAry2::Sub, self.ident, rhs.ident);
         self.register_and_continue_expr(node)
     }
 }
@@ -193,7 +193,7 @@ impl<'a> ops::Mul for ExprMatrix<'a> {
     type Output = ExprMatrix<'a>;
 
     fn mul(self, rhs: Self) -> Self::Output {
-        let node = ExprNode::Ary2(NaOperAry2::MulComp, self.ident(), rhs.ident());
+        let node = ExprNode::Ary2(NaOperAry2::MulComp, self.ident, rhs.ident);
         self.register_and_continue_expr(node)
     }
 }

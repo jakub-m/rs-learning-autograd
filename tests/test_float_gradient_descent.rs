@@ -31,7 +31,7 @@ fn test_gradient_descent_simple() {
 
     assert_eq!("(a * x)", format!("{}", y));
 
-    let [x, a, t, y, loss] = [x, a, t, y, loss].map(|expr| expr.ident());
+    let [x, a, t, y, loss] = [x, a, t, y, loss].map(|expr| expr.ident);
     let mut cg = ComputGraph::<f32, _, _>::new(eb, &FloatCalculator);
 
     let n_epochs = 1000;
@@ -94,8 +94,8 @@ fn test_fit_simple_relu() {
     let loss = (y - t).powi(2);
 
     let input_range = FloatRange::new(-2.0, 6.0, 0.1);
-    let [x, y, t, loss] = [x, y, t, loss].map(|p| p.ident());
-    let params = params.map(|p| p.ident());
+    let [x, y, t, loss] = [x, y, t, loss].map(|p| p.ident);
+    let params = params.map(|p| p.ident);
     let mut cg = ComputGraph::<f32, _, _>::new(eb, &FloatCalculator);
 
     let n_epochs = 50;
@@ -170,8 +170,8 @@ fn test_relu_to_sin() {
     //    format!("{}", y)
     //);
 
-    let [x, t, y, loss] = [x, t, y, loss].map(|expr| expr.ident());
-    let params: Vec<Ident> = params.iter().map(|expr| expr.ident()).collect();
+    let [x, t, y, loss] = [x, t, y, loss].map(|expr| expr.ident);
+    let params: Vec<Ident> = params.iter().map(|expr| expr.ident).collect();
     let mut cg = ComputGraph::<f32, _, _>::new(eb, &FloatCalculator);
 
     let mut rng = StdRng::seed_from_u64(42);

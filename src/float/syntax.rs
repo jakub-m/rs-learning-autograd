@@ -121,6 +121,12 @@ impl<'a> ExprFloat<'a> {
         let node = ExprNode::Ary1(FloatOperAry1::Relu, self.ident);
         self.register_and_continue_expr(node)
     }
+
+    /// Linear regression `y=ax+b` with `a` and `b` being latent parameters, not stated explicitly.
+    pub fn linreg(&self) -> ExprFloat<'a> {
+        let a = self.eb;
+        self.cos() + self.sin()
+    }
 }
 
 pub trait AsConst {

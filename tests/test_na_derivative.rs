@@ -31,7 +31,7 @@ fn sum_relu_func() {
     let p1 = eb.new_variable("p1");
     let y = (p1 * (x - p0).relu()).sum();
     //let y = (x - p0).relu().sum();
-    let [x, y, p0, p1] = [x, y, p0, p1].map(|p| p.ident());
+    let [x, y, p0, p1] = [x, y, p0, p1].map(|p| p.ident);
     let mut cg = new_cb(eb);
     let mut df = |x_inp: f32| {
         cg.reset_state_for_next_epoch();

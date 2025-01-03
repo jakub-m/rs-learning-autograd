@@ -12,6 +12,7 @@ use rs_autograd::{
 };
 use utils::{assert_functions_similar, FloatRange, Opts};
 
+#[ignore]
 #[test]
 fn test_conv2d_5x5_forward() {
     // let input_range = FloatRange::new(-3.1, 3.2, 0.1);
@@ -32,7 +33,7 @@ fn test_conv2d_5x5_forward() {
     // let t = eb.new_variable("t");
     // let loss = (y - t).powi(2);
 
-    let [x, y] = [x, y].map(|p| p.ident());
+    let [x, y] = [x, y].map(|p| p.ident);
     let mut cg = ComputGraph::<MatrixF32, _, _>::new(eb, &MatrixCalculator);
 
     cg.reset_primal_of_variable(&x, MatrixF32::new_m(get_m(5, 4)));

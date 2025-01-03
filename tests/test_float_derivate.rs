@@ -40,14 +40,14 @@ fn test_hf() {
     let y = v4;
 
     // Compute.
-    let x1 = x1.ident();
-    let x2 = x2.ident();
-    let v0 = v0.ident();
-    let v1 = v1.ident();
-    let v2 = v2.ident();
-    let v3 = v3.ident();
-    let v4 = v4.ident();
-    let y = y.ident();
+    let x1 = x1.ident;
+    let x2 = x2.ident;
+    let v0 = v0.ident;
+    let v1 = v1.ident;
+    let v2 = v2.ident;
+    let v3 = v3.ident;
+    let v4 = v4.ident;
+    let y = y.ident;
     let mut cg = ComputGraph::<f32, _, _>::new(eb, &FloatCalculator);
     cg.set_variable(&x1, 3.0);
     cg.set_variable(&x2, -4.0);
@@ -78,8 +78,8 @@ fn sin_cos() {
     assert_eq!("(sin((x * 30)) * cos(x))", format!("{}", y));
 
     // Compute.
-    let x = x.ident();
-    let y = y.ident();
+    let x = x.ident;
+    let y = y.ident;
     let mut cg = ComputGraph::<f32, _, _>::new(eb, &FloatCalculator);
     let mut df = |x_inp: f32| {
         cg.reset_state_for_next_epoch();
@@ -105,8 +105,8 @@ fn test_pow() {
     let x = eb.new_variable("x1");
     let y = x.pow(2.0.as_const(&eb));
 
-    let x = x.ident();
-    let y = y.ident();
+    let x = x.ident;
+    let y = y.ident;
     let mut cg = ComputGraph::<f32, _, _>::new(eb, &FloatCalculator);
     let mut df = |x_inp: f32| {
         cg.reset_state_for_next_epoch();

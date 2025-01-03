@@ -139,7 +139,7 @@ pub trait FloatType:
 impl FloatType for f32 {}
 
 #[derive(Clone, Copy)]
-pub struct FloatRange<F>
+pub struct FloatRange<F = f32>
 where
     F: FloatType,
 {
