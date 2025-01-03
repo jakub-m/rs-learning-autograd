@@ -29,7 +29,7 @@ pub trait DefaultAdjoin {
 
 /// Identifier of an [Expr][Expr]. Ident is [Copy] so we can have ergonomic syntax of building
 /// the expression tree, like `y = a + b`.
-#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Debug, Hash)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Debug)]
 pub struct Ident(usize);
 
 impl Display for Ident {
@@ -38,10 +38,8 @@ impl Display for Ident {
     }
 }
 
-/// Some nodes are variables, and those variables have names stored aside. VariableNameId
-/// points to that unique name. The type is only to distinguish [Ident] from the variable name.
-#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Debug, Hash)]
-pub struct NameId(Ident); // TODO make it private or not public at least?
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct NameId(Ident);
 
 impl Display for NameId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -70,7 +68,7 @@ impl<'a> From<&'a NameId> for &'a Ident {
 pub trait Operator: Clone + Copy + fmt::Debug + fmt::Display {}
 
 ///A node in the expression tree.
-#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Copy, Debug)]
 pub enum Node<F, OP1, OP2>
 where
     F: ComputValue,
