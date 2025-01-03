@@ -32,27 +32,7 @@ where
     calculator: &'a dyn Calculator<OP1, OP2, F>,
 }
 
-//remove /// Holds all the numeric data related to a node in computation graph.
-//remove /// The node types are:
-//remove /// - Variable - explicitly set by the user, an input variable. The variables are reset often.
-//remove /// - Parameter - parameter of the model, that is updated during back-propagation. The parameters
-//remove ///   are initialized once (to random values) and then updated at the end of each training epoch.
-//remove #[derive(Clone, Debug)]
-//remove enum NodeData<F> {
-//remove     /// The node holds a variable, like input variable. The variable is reset for every input.
-//remove     Variable {
-//remove         /// Primal (result of "forward").
-//remove         primal: Option<F>,
-//remove         /// Accumulated adjoin (result of "backward"). The u32 is the count of how many "add adjoin" was run on this adjoin.
-//remove         /// This count is needed to divide adjoin when applying learn rate.
-//remove         adjoin: Option<(F, u32)>,
-//remove     },
-//remove     /// The node holds model parameters. The node parameters are not reset, they are modified on each epoch.
-//remove     Parameter { primal: F, adjoin: Option<(F, u32)> },
-//remove     /// The node type was not yet set. Once set, the node type cannot be changed.
-//remove     Unset,
-//remove }
-
+/// Node holds the abstract syntax tree structure, and all the numeric data related to the node in the computation graph.
 #[derive(Debug, Clone)]
 pub enum Node2<F, OP1, OP2>
 where
@@ -61,10 +41,13 @@ where
     OP2: Operator,
 {
     Const(F),
+    /// A variable explicitly set by the user, an input variable. The variables are reset often.
     Variable {
         name: String,
         tensors: Tensors<F>,
     },
+    /// A parameter of the model, that is updated during back-propagation. The parameters are initialized
+    /// once (to random values) and then updated at the end of each training epoch.
     Parameter {
         name: Option<String>,
         tensors: Tensors<F>,
@@ -120,11 +103,14 @@ where
 }
 
 #[derive(Debug, Clone)]
-struct Tensors<F>
+pub struct Tensors<F>
 where
     F: ComputValue,
 {
+    /// Primal, result of `forward`.
     primal: Option<F>,
+    /// Accumulated adjoin (result of "backward"). The u32 is the count of how many "add adjoin" was run on this adjoin.
+    /// This count is needed to divide adjoin when applying learn rate.
     adjoin: Option<(F, u32)>,
 }
 
