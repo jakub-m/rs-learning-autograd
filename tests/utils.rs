@@ -3,6 +3,7 @@ use std::{cmp, fmt, fs::File, io::Write, ops};
 pub enum Opts<'a> {
     InputRange(FloatRange<f32>),
     TestName(&'a str),
+    /// Maximum RMS error allowed.
     MaxRms(f32),
 }
 

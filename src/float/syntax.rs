@@ -124,8 +124,11 @@ impl<'a> ExprFloat<'a> {
 
     /// Linear regression `y=ax+b` with `a` and `b` being latent parameters, not stated explicitly.
     pub fn linreg(&self) -> ExprFloat<'a> {
-        let a = self.eb;
-        self.cos() + self.sin()
+        let x = *self;
+        // Two latent parameters with some "random" initial values.
+        let a = self.eb.new_parameter(0.11);
+        let b = self.eb.new_parameter(-0.13);
+        a * x + b
     }
 }
 

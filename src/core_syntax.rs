@@ -132,14 +132,15 @@ where
     OP1: Operator,
     OP2: Operator,
 {
-    fn fmt_node(&self, f: &mut fmt::Formatter<'_>, node: &ExprNode<F, OP1, OP2>) -> fmt::Result {
+    fn fmt_node(&self, f: &mut fmt::Formatter<'_>, node_ident: &Ident) -> fmt::Result {
         let id_to_node = self.eb.id_to_node.borrow();
+        let node = id_to_node.get(node_ident).ok_or(fmt::Error)?;
         match node {
             ExprNode::Const(value) => write!(f, "{}", value)?,
             ExprNode::Parameter(name_id, _) => {
                 let name = name_id
                     .and_then(|id| self.eb.get_name(&id))
-                    .unwrap_or("?".to_owned());
+                    .unwrap_or(format!("{}", node_ident));
                 write!(f, "{}", name,)?;
             }
             ExprNode::Variable(name_id) => {
@@ -147,18 +148,15 @@ where
                 write!(f, "{}", name)?;
             }
             ExprNode::Ary1(op, ident) => {
-                let node = id_to_node.get(ident).ok_or(fmt::Error)?;
                 write!(f, "{}(", op)?;
-                self.fmt_node(f, node)?;
+                self.fmt_node(f, ident)?;
                 write!(f, ")",)?;
             }
             ExprNode::Ary2(op, ident1, ident2) => {
-                let node1 = id_to_node.get(ident1).ok_or(fmt::Error)?;
-                let node2 = id_to_node.get(ident2).ok_or(fmt::Error)?;
                 write!(f, "(")?;
-                self.fmt_node(f, &node1)?;
+                self.fmt_node(f, ident1)?;
                 write!(f, "{}", op)?;
-                self.fmt_node(f, &node2)?;
+                self.fmt_node(f, ident2)?;
                 write!(f, ")")?;
             }
         };
@@ -173,9 +171,7 @@ where
     OP2: Operator,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let map = self.eb.id_to_node.borrow();
-        let node = map.get(&self.ident).ok_or(fmt::Error)?;
-        self.fmt_node(f, &node)
+        self.fmt_node(f, &self.ident)
     }
 }
 
