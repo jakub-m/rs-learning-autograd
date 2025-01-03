@@ -1,6 +1,6 @@
 //! This module abstracts how to compute values out of nodes.
 
-use crate::core_syntax::{ComputValue, Expr, ExprBuilder, Ident, Node, Operator, VariableNameId};
+use crate::core_syntax::{ComputValue, Expr, ExprBuilder, Ident, NameId, Node, Operator};
 use std::{cell::RefCell, collections::BTreeMap};
 
 impl AsRef<Ident> for Ident {
@@ -63,7 +63,6 @@ where
     Const(F),
     Variable {
         name: String,
-        tmp_name_id: VariableNameId, // TODO remove, compat only.
         tensors: Tensors<F>,
     },
     Parameter {
@@ -170,7 +169,6 @@ where
                     name: eb
                         .get_name(name_id)
                         .expect("variable should have name but did not!"),
-                    tmp_name_id: name_id.clone(), // TODO remove tmp_name_id
                     tensors,
                 },
                 Node::Ary1(oper, arg1) => Node2::Ary1 {
@@ -214,13 +212,14 @@ where
     pub fn set_parameter(&mut self, ident: &dyn AsRef<Ident>, value: F) {
         let ident = ident.as_ref().clone();
         let mut ast = self.ast.borrow_mut();
-        if let Node2::Parameter { name, tensors } = ast.get_mut(&ident).expect("") {
+        let node = ast.get_mut(&ident).unwrap();
+        if let Node2::Parameter { name, tensors } = node {
             if let Some(_) = tensors.primal.replace(value) {
                 panic!("Parameter {:?} already has primal set!", name);
             };
             tensors.adjoin.take();
         } else {
-            panic!("Node is not Parameter!")
+            panic!("Node is not Parameter! {:?}", &node)
         }
     }
 

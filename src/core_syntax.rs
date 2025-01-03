@@ -41,28 +41,28 @@ impl Display for Ident {
 /// Some nodes are variables, and those variables have names stored aside. VariableNameId
 /// points to that unique name. The type is only to distinguish [Ident] from the variable name.
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Debug, Hash)]
-pub struct VariableNameId(Ident); // TODO make it private or not public at least?
+pub struct NameId(Ident); // TODO make it private or not public at least?
 
-impl Display for VariableNameId {
+impl Display for NameId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "name({})", self.0)
     }
 }
 
-impl From<Ident> for VariableNameId {
+impl From<Ident> for NameId {
     fn from(value: Ident) -> Self {
-        VariableNameId(value)
+        NameId(value)
     }
 }
 
-impl From<VariableNameId> for Ident {
-    fn from(value: VariableNameId) -> Self {
+impl From<NameId> for Ident {
+    fn from(value: NameId) -> Self {
         value.0
     }
 }
 
-impl<'a> From<&'a VariableNameId> for &'a Ident {
-    fn from(value: &'a VariableNameId) -> Self {
+impl<'a> From<&'a NameId> for &'a Ident {
+    fn from(value: &'a NameId) -> Self {
         &value.0
     }
 }
@@ -80,9 +80,9 @@ where
     /// A constant value.
     Const(F),
     /// A named variable.
-    Variable(VariableNameId),
+    Variable(NameId),
     /// An unnamed model parameter with some initial value.
-    Parameter(F),
+    Parameter(Option<NameId>, F),
     /// Arity-1 operation, like ln or sin.
     Ary1(OP1, Ident),
     /// Arity-2 operation, like addition.
@@ -200,7 +200,7 @@ where
 {
     /// The map contains expression trees with references.
     pub(super) id_to_node: RefCell<BTreeMap<Ident, Node<F, OP1, OP2>>>,
-    id_to_name: RefCell<BTreeMap<VariableNameId, String>>,
+    id_to_name: RefCell<BTreeMap<NameId, String>>,
     name_set: RefCell<HashSet<String>>,
 }
 
@@ -220,7 +220,7 @@ where
 
     pub fn new_variable(&'a self, name: &str) -> Expr<'a, F, OP1, OP2> {
         let ident = self.new_ident();
-        let name_id: VariableNameId = ident.into();
+        let name_id: NameId = ident.into();
 
         let mut id_to_name = self.id_to_name.borrow_mut();
         if let Some(old_name) = id_to_name.insert(name_id, name.to_owned()) {
@@ -245,6 +245,14 @@ where
     /// The parameter value is only used later when initializing [ComputeGraph].
     /// `new_parameter` is useful for operations that introduce latent parameters.
     pub fn new_parameter(&'a self, value: F) -> Expr<'a, F, OP1, OP2> {
+        todo!()
+    }
+
+    pub fn new_named_parameter(&'a self, name: &str, value: F) -> Expr<'a, F, OP1, OP2> {
+        todo!()
+    }
+
+    fn new_parameter_internal(&'a self, name: Option<&str>, value: F) -> Expr<'a, F, OP1, OP2> {
         let ident = self.new_ident();
         let node = Node::Parameter(value);
         let mut id_to_node = self.id_to_node.borrow_mut();
@@ -257,7 +265,7 @@ where
         Expr { ident, eb: self }
     }
 
-    pub fn get_name(&self, name_id: &VariableNameId) -> Option<String> {
+    pub fn get_name(&self, name_id: &NameId) -> Option<String> {
         let id_to_name = self.id_to_name.borrow();
         id_to_name.get(name_id).map(|s| s.to_owned())
     }

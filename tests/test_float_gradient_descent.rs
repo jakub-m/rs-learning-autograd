@@ -22,7 +22,7 @@ fn test_gradient_descent_simple() {
     // Define the model.
     let eb = new_eb();
     let x = eb.new_variable("x");
-    let a = eb.new_variable("a");
+    let a = eb.new_named_parameter("a", 0.1);
     // "y" is the "model" that we will fit to the polynomial.
     let y = a * x;
     // t is the target value
@@ -36,9 +36,6 @@ fn test_gradient_descent_simple() {
 
     let n_epochs = 1000;
     let learn_rate = 0.1;
-
-    // Set equation ("model") parameters.
-    cg.set_parameter(&a, 0.1);
 
     for i in 0..n_epochs {
         print!("epoch {}", i);
@@ -91,7 +88,7 @@ fn test_fit_simple_relu() {
     let eb = new_eb();
 
     let x = eb.new_variable("x");
-    let params = [eb.new_variable("a"), eb.new_variable("b")];
+    let params = [1, 2].map(|i| eb.new_parameter(0.01 * (i as f32)));
     let y = (x - params[0]).relu() * params[1];
     let t = eb.new_variable("t");
     let loss = (y - t).powi(2);
@@ -100,10 +97,6 @@ fn test_fit_simple_relu() {
     let [x, y, t, loss] = [x, y, t, loss].map(|p| p.ident());
     let params = params.map(|p| p.ident());
     let mut cg = ComputGraph::<f32, _, _>::new(eb, &FloatCalculator);
-
-    for i in 0..params.len() {
-        cg.set_parameter(&params[i], 0.01 * (i as f32));
-    }
 
     let n_epochs = 50;
     let learn_rate = 0.1;
