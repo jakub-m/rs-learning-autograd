@@ -1,20 +1,39 @@
 use ndarray as nd;
 use ndarray::s;
+use std::fmt;
 
-//trait Array2Conv {
-//    fn get_center(&self) -> nd::Dim<[usize; 2]>;
-//}
-//
-//impl Array2Conv for nd::ArrayBase<nd::OwnedRepr<usize>, nd::Dim<[usize; 2]>> {
-//    /// Works for odd dimensions, e.g. for 5x7 it should return (2, 3)
-//    fn get_center(&self) -> nd::Dim<[usize; 2]> {
-//        let (r, c) = self.dim();
-//        nd::Dim([r / 2, c / 2])
-//    }
-//}
+/// Convolve two 2d matrices into a single 2d matrix. `k` is the kernel matrix.
+#[allow(dead_code)]
+pub fn conv2d<A, S1, S2>(
+    a: &nd::ArrayBase<S1, nd::Ix2>,
+    k: &nd::ArrayBase<S2, nd::Ix2>,
+) -> nd::Array<A, nd::Ix2>
+where
+    A: std::ops::Mul<Output = A> + Copy + num_traits::Zero + fmt::Debug,
+    S1: nd::Data<Elem = A>,
+    S2: nd::Data<Elem = A>,
+{
+    let ix_iter = iter_conv2d_slices(a.shape(), k.shape()).unwrap();
+    let output_shape = &ix_iter.output_shape();
+    let output_shape = (output_shape[0], output_shape[1]);
+    let iter_conv = ix_iter.map(|a_ix| {
+        let a_slice = a.slice(a_ix);
+        assert_eq!(
+            a_slice.shape(),
+            k.shape(),
+            "The shapes of the convoluted slice and kernel must match!"
+        );
+        let m_mul = &a_slice * k;
+        m_mul.sum()
+    });
+    nd::Array::from_iter(iter_conv)
+        .to_shape(output_shape)
+        .unwrap()
+        .into_owned()
+}
 
 /// Produce iterator that yields sliding slice indexes that can be used for convolution.
-pub fn iter_conv2d_slices(
+fn iter_conv2d_slices(
     input_shape: &[usize],
     kernel_shape: &[usize],
 ) -> Result<SliceIteratorIx2, BadShapeError> {
@@ -38,7 +57,7 @@ pub fn iter_conv2d_slices(
     })
 }
 #[derive(Debug)]
-pub struct BadShapeError(String);
+struct BadShapeError(String);
 
 impl BadShapeError {
     fn from_string(message: String) -> BadShapeError {
@@ -48,6 +67,8 @@ impl BadShapeError {
 
 pub struct SliceIteratorIx2 {
     kernel_shape: [usize; 2],
+    /// Range of the indices (left inclusive, right exclusive) for dimension 0 of the input matrix. The kernel
+    /// is slid along those values.
     d0_range: [usize; 2],
     d1_range: [usize; 2],
     d0_curr: usize,
@@ -75,15 +96,28 @@ impl Iterator for SliceIteratorIx2 {
     }
 }
 
+impl SliceIteratorIx2 {
+    /// Return shape of the output matrix.
+    pub fn output_shape(&self) -> [usize; 2] {
+        [
+            self.d0_range[1] - self.d0_range[0],
+            self.d1_range[1] - self.d1_range[0],
+        ]
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    use std::ops;
+
+    use super::conv2d;
     use super::iter_conv2d_slices;
-    use ndarray::{self as nd};
+    use ndarray::{self as nd, arr2};
 
     #[test]
-    fn iter_conv_sliding() {
-        let a = new_arr(4, 5);
-        let k = new_arr(3, 3);
+    fn test_iter_conv_sliding() {
+        let a = new_arr_inc(4, 5);
+        let k = new_arr_inc(3, 3);
         let mut actual_slice_corners: Vec<(i32, i32)> = Vec::new();
         for sl in iter_conv2d_slices(a.shape(), k.shape()).unwrap() {
             let a_slice = a.slice(sl);
@@ -97,20 +131,68 @@ mod tests {
     }
 
     #[test]
-    fn fail_iter_on_bad_shapes() {
-        assert!(iter_conv2d_slices(new_arr(3, 2).shape(), new_arr(3, 3).shape()).is_err());
-        assert!(iter_conv2d_slices(new_arr(2, 3).shape(), new_arr(3, 3).shape()).is_err());
+    fn test_fail_iter_on_bad_shapes() {
+        assert!(iter_conv2d_slices(new_arr_inc(3, 2).shape(), new_arr_inc(3, 3).shape()).is_err());
+        assert!(iter_conv2d_slices(new_arr_inc(2, 3).shape(), new_arr_inc(3, 3).shape()).is_err());
+    }
+
+    #[test]
+    fn test_convolve_two_matrices_2d() {
+        let a = new_arr_inc(5, 4);
+        let k = new_arr_inc(2, 3);
+        let actual: ndarray::ArrayBase<ndarray::OwnedRepr<i32>, ndarray::Dim<[usize; 2]>> =
+            conv2d(&a, &k);
+        // a
+        // [[0, 1, 2, 3],
+        //  [4, 5, 6, 7],
+        //  [8, 9, 10, 11],
+        //  [12, 13, 14, 15],
+        //  [16, 17, 18, 19]]
+        // k
+        // [[0, 1, 2],
+        //  [3, 4, 5]]
+        assert_eq!(actual.shape(), [4, 2]);
+        let b = [0, 1, 2, 3, 4, 5];
+        let expected = arr2(&[
+            [dot([0, 1, 2, 4, 5, 6], b), dot([1, 2, 3, 5, 6, 7], b)],
+            [dot([4, 5, 6, 8, 9, 10], b), dot([5, 6, 7, 9, 10, 11], b)],
+            [
+                dot([8, 9, 10, 12, 13, 14], b),
+                dot([9, 10, 11, 13, 14, 15], b),
+            ],
+            [
+                dot([12, 13, 14, 16, 17, 18], b),
+                dot([13, 14, 15, 17, 18, 19], b),
+            ],
+        ]);
+        eprintln!(
+            "a\n{:?}\nk\n{:?}\nactual\n{:?}\nexpected\n{:?}",
+            &a, &k, actual, expected
+        );
+        assert_eq!(actual, expected);
+    }
+
+    fn dot<F, const N: usize>(a: [F; N], b: [F; N]) -> F
+    where
+        F: ops::Add<F, Output = F>,
+        F: ops::Mul<F, Output = F>,
+        F: Copy,
+    {
+        (0..N)
+            .map(|i| a[i] * b[i])
+            .reduce(|acc, e| acc + e)
+            .unwrap()
     }
 
     fn shape2(r: usize, c: usize) -> nd::Ix2 {
         nd::Ix2(r, c)
     }
 
-    fn shape(r: usize, c: usize) -> nd::IxDyn {
-        nd::IxDyn(&[r, c])
-    }
+    //fn shape(r: usize, c: usize) -> nd::IxDyn {
+    //    nd::IxDyn(&[r, c])
+    //}
 
-    fn new_arr(nrows: usize, ncols: usize) -> nd::Array2<i32> {
+    fn new_arr_inc(nrows: usize, ncols: usize) -> nd::Array2<i32> {
         nd::Array2::from_shape_fn(shape2(nrows, ncols), |(ir, ic)| (ir * ncols + ic) as i32)
     }
 }
