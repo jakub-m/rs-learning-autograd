@@ -4,14 +4,9 @@ use std::fmt;
 
 /// Convolve two 2d matrices into a single 2d matrix. `k` is the kernel matrix.
 #[allow(dead_code)]
-pub fn conv2d<A, S1, S2>(
-    a: &nd::ArrayBase<S1, nd::Ix2>,
-    k: &nd::ArrayBase<S2, nd::Ix2>,
-) -> nd::Array<A, nd::Ix2>
+pub fn conv2d<A>(a: &nd::Array<A, nd::Ix2>, k: &nd::Array<A, nd::Ix2>) -> nd::Array<A, nd::Ix2>
 where
     A: std::ops::Mul<Output = A> + Copy + num_traits::Zero + fmt::Debug,
-    S1: nd::Data<Elem = A>,
-    S2: nd::Data<Elem = A>,
 {
     let ix_iter = iter_conv2d_slices(a.shape(), k.shape()).unwrap();
     let output_shape = &ix_iter.output_shape();
