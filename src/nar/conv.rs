@@ -1,6 +1,6 @@
 use ndarray as nd;
 use ndarray::s;
-use std::fmt;
+use std::{fmt, ops};
 
 /// Convolve two 2d matrices into a single 2d matrix. `k` is the kernel matrix.
 #[allow(dead_code)]
@@ -27,6 +27,56 @@ where
         .into_owned()
 }
 
+/// Given that there is a convolution V = conv2d(A, K) where A is an array and K is a kernel, this function calculates
+/// a derivative `dV/dK`, that is, much does K contribute to V.
+pub fn conv2d_adjoin<A, S1>(
+    a: &nd::Array<A, nd::Ix2>,
+    k: &nd::Array<A, nd::Ix2>,
+) -> nd::Array<A, nd::Ix2> {
+    todo!()
+}
+
+/// Take the window of size `k_shape` (e.g. kernel), slide it along matrix `a` and sum all the values in the window.
+/// The implementation does not literally slide the window and sum the values, but instead does it in two swipes.
+fn sliding_sum<A>(a: &nd::Array<A, nd::Ix2>, k_shape: &[usize]) -> nd::Array<A, nd::Ix2>
+where
+    A: Copy + fmt::Debug,
+    A: num_traits::Zero,
+    A: ops::Sub<Output = A> + ops::Add<Output = A>,
+{
+    let mut sums0 = a.clone();
+    let a_shape = sums0.shape().to_owned();
+
+    for i_d0 in 0..a_shape[0] {
+        // Say d0 are rows and d1 are columns. For each row do the following:
+        // First, sum all the values withing the window. The last value will be the sum.
+        // Then, slide the window, and update the sum. The right part of the row will contain
+        // the sums of the sliding window.
+
+        sums0[[i_d0, k_shape[1] - 1]] = a.slice(s![i_d0, 0..k_shape[1]]).sum();
+        // Now slide the window and update the sum with one value that entered and left the window.
+        for i_d1 in k_shape[1]..a_shape[1] {
+            sums0[[i_d0, i_d1]] =
+                sums0[[i_d0, i_d1 - 1]] - a[[i_d0, i_d1 - k_shape[1]]] + a[[i_d0, i_d1]];
+        }
+    }
+
+    // Now do the same trick but vertically, and only to the columns on the right.
+    // Actually you could do it all in a single pass.
+    let mut sums1 = sums0.clone();
+    for i_d1 in (a_shape[1] - k_shape[1])..a_shape[1] {
+        sums1[[k_shape[0] - 1, i_d1]] = sums0.slice(s![0..k_shape[0], i_d1]).sum();
+        for i_d0 in k_shape[0]..a_shape[0] {
+            sums1[[i_d0, i_d1]] =
+                sums1[[i_d0 - 1, i_d1]] - sums0[[i_d0 - k_shape[0], i_d1]] + sums0[[i_d0, i_d1]];
+        }
+    }
+
+    sums1
+        .slice(s![k_shape[0] - 1.., k_shape[1] - 1..])
+        .to_owned()
+}
+
 /// Produce iterator that yields sliding slice indexes that can be used for convolution.
 fn iter_conv2d_slices(
     input_shape: &[usize],
@@ -51,6 +101,7 @@ fn iter_conv2d_slices(
         d1_curr: d1_range[0],
     })
 }
+
 #[derive(Debug)]
 struct BadShapeError(String);
 
@@ -107,6 +158,7 @@ mod tests {
 
     use super::conv2d;
     use super::iter_conv2d_slices;
+    use super::sliding_sum;
     use ndarray::{self as nd, arr2};
 
     #[test]
@@ -117,7 +169,6 @@ mod tests {
         for sl in iter_conv2d_slices(a.shape(), k.shape()).unwrap() {
             let a_slice = a.slice(sl);
             actual_slice_corners.push((a_slice[(0, 0)], a_slice[(2, 2)]));
-            // eprintln!("a_slice\n{:?}", a_slice);
         }
         assert_eq!(
             actual_slice_corners,
@@ -164,6 +215,29 @@ mod tests {
             "a\n{:?}\nk\n{:?}\nactual\n{:?}\nexpected\n{:?}",
             &a, &k, actual, expected
         );
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_sliding_sum() {
+        let a = new_arr_inc(5, 4);
+        // a
+        // [[0, 1, 2, 3],
+        //  [4, 5, 6, 7],
+        //  [8, 9, 10, 11],
+        //  [12, 13, 14, 15],
+        //  [16, 17, 18, 19]]
+        // k
+        // [[. . .]
+        //  [. . .]]
+        // The result should be 4x2
+        let actual = sliding_sum(&a, &[2, 3]);
+        let expected = arr2(&[
+            [(0 + 1 + 2 + 4 + 5 + 6), (1 + 2 + 3 + 5 + 6 + 7)],
+            [(4 + 5 + 6 + 8 + 9 + 10), (5 + 6 + 7 + 9 + 10 + 11)],
+            [(8 + 9 + 10 + 12 + 13 + 14), (9 + 10 + 11 + 13 + 14 + 15)],
+            [(12 + 13 + 14 + 16 + 17 + 18), (13 + 14 + 15 + 17 + 18 + 19)],
+        ]);
         assert_eq!(actual, expected);
     }
 
