@@ -29,11 +29,16 @@ where
 
 /// Given that there is a convolution V = conv2d(A, K) where A is an array and K is a kernel, this function calculates
 /// a derivative `dV/dK`, that is, much does K contribute to V.
-pub fn conv2d_adjoin<A, S1>(
+pub fn conv2d_adjoin<A>(
     a: &nd::Array<A, nd::Ix2>,
     k: &nd::Array<A, nd::Ix2>,
-) -> nd::Array<A, nd::Ix2> {
-    todo!()
+) -> nd::Array<A, nd::Ix2>
+where
+    A: Copy + fmt::Debug,
+    A: num_traits::Zero,
+    A: ops::Sub<Output = A> + ops::Add<Output = A>,
+{
+    sliding_sum(a, k.shape())
 }
 
 /// Take the window of size `k_shape` (e.g. kernel), slide it along matrix `a` and sum all the values in the window.
@@ -156,6 +161,8 @@ impl SliceIteratorIx2 {
 mod tests {
     use std::ops;
 
+    use crate::nar::conv::conv2d_adjoin;
+
     use super::conv2d;
     use super::iter_conv2d_slices;
     use super::sliding_sum;
@@ -163,8 +170,8 @@ mod tests {
 
     #[test]
     fn test_iter_conv_sliding() {
-        let a = new_arr_inc(4, 5);
-        let k = new_arr_inc(3, 3);
+        let a = new_arr_inc_i32(4, 5);
+        let k = new_arr_inc_i32(3, 3);
         let mut actual_slice_corners: Vec<(i32, i32)> = Vec::new();
         for sl in iter_conv2d_slices(a.shape(), k.shape()).unwrap() {
             let a_slice = a.slice(sl);
@@ -178,14 +185,20 @@ mod tests {
 
     #[test]
     fn test_fail_iter_on_bad_shapes() {
-        assert!(iter_conv2d_slices(new_arr_inc(3, 2).shape(), new_arr_inc(3, 3).shape()).is_err());
-        assert!(iter_conv2d_slices(new_arr_inc(2, 3).shape(), new_arr_inc(3, 3).shape()).is_err());
+        assert!(
+            iter_conv2d_slices(new_arr_inc_i32(3, 2).shape(), new_arr_inc_i32(3, 3).shape())
+                .is_err()
+        );
+        assert!(
+            iter_conv2d_slices(new_arr_inc_i32(2, 3).shape(), new_arr_inc_i32(3, 3).shape())
+                .is_err()
+        );
     }
 
     #[test]
     fn test_convolve_two_matrices_2d() {
-        let a = new_arr_inc(5, 4);
-        let k = new_arr_inc(2, 3);
+        let a = new_arr_inc_i32(5, 4);
+        let k = new_arr_inc_i32(2, 3);
         let actual: ndarray::ArrayBase<ndarray::OwnedRepr<i32>, ndarray::Dim<[usize; 2]>> =
             conv2d(&a, &k);
         // a
@@ -220,7 +233,7 @@ mod tests {
 
     #[test]
     fn test_sliding_sum() {
-        let a = new_arr_inc(5, 4);
+        let a = new_arr_inc_i32(5, 4);
         // a
         // [[0, 1, 2, 3],
         //  [4, 5, 6, 7],
@@ -239,6 +252,40 @@ mod tests {
             [(12 + 13 + 14 + 16 + 17 + 18), (13 + 14 + 15 + 17 + 18 + 19)],
         ]);
         assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_conv2d_adjoin() {
+        let a = new_arr_inc_f32(5, 4);
+        let k = new_arr_inc_f32(2, 3);
+        let adjoin = conv2d_adjoin(&a, &k); // [4, 2]
+
+        // let k_max = k
+        //     .iter()
+        //     .reduce(|acc, e| if e > acc { e } else { acc })
+        //     .unwrap()
+        //     .to_owned();
+        // let k = (2.0 * &k - k_max) / k_max;
+
+        dbg!(&adjoin);
+
+        let i0 = 0;
+        let i1 = 0;
+
+        let epsilon = 0.001;
+        let mut k_left = k.clone();
+        let mut k_right = k.clone();
+        k_left[[i0, i1]] = k_left[[i0, i1]] - epsilon;
+        k_right[[i0, i1]] = k_right[[i0, i1]] + epsilon;
+        let conv_left = conv2d(&a, &k_left);
+        let conv_right = conv2d(&a, &k_right);
+
+        let dy_dk_approx = (&conv_right - &conv_left) / epsilon;
+        let dy_dk_approx = dy_dk_approx;
+        dbg!(&dy_dk_approx);
+        dbg!(&adjoin[[i0, i1]]);
+
+        //assert_eq!(actual, expected);
     }
 
     fn dot<F, const N: usize>(a: [F; N], b: [F; N]) -> F
@@ -261,7 +308,11 @@ mod tests {
     //    nd::IxDyn(&[r, c])
     //}
 
-    fn new_arr_inc(nrows: usize, ncols: usize) -> nd::Array2<i32> {
+    fn new_arr_inc_i32(nrows: usize, ncols: usize) -> nd::Array2<i32> {
         nd::Array2::from_shape_fn(shape2(nrows, ncols), |(ir, ic)| (ir * ncols + ic) as i32)
+    }
+
+    fn new_arr_inc_f32(nrows: usize, ncols: usize) -> nd::Array2<f32> {
+        nd::Array2::from_shape_fn(shape2(nrows, ncols), |(ir, ic)| (ir * ncols + ic) as f32)
     }
 }
