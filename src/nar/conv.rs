@@ -27,20 +27,6 @@ where
         .into_owned()
 }
 
-/// Given that there is a convolution V = conv2d(A, K) where A is an array and K is a kernel, this function calculates
-/// a derivative `dV/dK`, that is, much does K contribute to V.
-pub fn conv2d_adjoin<A>(
-    a: &nd::Array<A, nd::Ix2>,
-    k: &nd::Array<A, nd::Ix2>,
-) -> nd::Array<A, nd::Ix2>
-where
-    A: Copy + fmt::Debug,
-    A: num_traits::Zero,
-    A: ops::Sub<Output = A> + ops::Add<Output = A>,
-{
-    sliding_sum(a, k.shape())
-}
-
 /// Take the window of size `k_shape` (e.g. kernel), slide it along matrix `a` and sum all the values in the window.
 /// The implementation does not literally slide the window and sum the values, but instead does it in two swipes.
 fn sliding_sum<A>(a: &nd::Array<A, nd::Ix2>, k_shape: &[usize]) -> nd::Array<A, nd::Ix2>
@@ -107,6 +93,19 @@ fn iter_conv2d_slices(
     })
 }
 
+// Given `v = conv(a, k)`, where `k` is a kernel, calculate `dv/da` and `dv/dk`, returned in that order.
+// # Arguments
+// * `a` - the input matrix
+// * `k` - the kernel matrix
+// * `adv` - the adjoin from the upstream.
+fn conv2d_adjoin<A>(
+    a: nd::Array2<A>,
+    k: nd::Array2<A>,
+    adv: nd::Array2<A>,
+) -> (nd::Array2<A>, nd::Array2<A>) {
+    todo!()
+}
+
 #[derive(Debug)]
 struct BadShapeError(String);
 
@@ -160,8 +159,6 @@ impl SliceIteratorIx2 {
 #[cfg(test)]
 mod tests {
     use std::ops;
-
-    use crate::nar::conv::conv2d_adjoin;
 
     use super::conv2d;
     use super::iter_conv2d_slices;
@@ -252,40 +249,6 @@ mod tests {
             [(12 + 13 + 14 + 16 + 17 + 18), (13 + 14 + 15 + 17 + 18 + 19)],
         ]);
         assert_eq!(actual, expected);
-    }
-
-    #[test]
-    fn test_conv2d_adjoin() {
-        let a = new_arr_inc_f32(5, 4);
-        let k = new_arr_inc_f32(2, 3);
-        let adjoin = conv2d_adjoin(&a, &k); // [4, 2]
-
-        // let k_max = k
-        //     .iter()
-        //     .reduce(|acc, e| if e > acc { e } else { acc })
-        //     .unwrap()
-        //     .to_owned();
-        // let k = (2.0 * &k - k_max) / k_max;
-
-        dbg!(&adjoin);
-
-        let i0 = 0;
-        let i1 = 0;
-
-        let epsilon = 0.001;
-        let mut k_left = k.clone();
-        let mut k_right = k.clone();
-        k_left[[i0, i1]] = k_left[[i0, i1]] - epsilon;
-        k_right[[i0, i1]] = k_right[[i0, i1]] + epsilon;
-        let conv_left = conv2d(&a, &k_left);
-        let conv_right = conv2d(&a, &k_right);
-
-        let dy_dk_approx = (&conv_right - &conv_left) / epsilon;
-        let dy_dk_approx = dy_dk_approx;
-        dbg!(&dy_dk_approx);
-        dbg!(&adjoin[[i0, i1]]);
-
-        //assert_eq!(actual, expected);
     }
 
     fn dot<F, const N: usize>(a: [F; N], b: [F; N]) -> F
