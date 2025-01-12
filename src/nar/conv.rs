@@ -6,13 +6,15 @@ use super::conv_iter::V2;
 
 /// Convolve two 2d matrices into a single 2d matrix. `k` is the kernel matrix.
 #[allow(dead_code)]
-pub fn conv2d<A>(a: &nd::Array<A, nd::Ix2>, k: &nd::Array<A, nd::Ix2>) -> nd::Array<A, nd::Ix2>
+pub fn conv2d<A>(
+    a: &nd::CowArray<A, nd::IxDyn>,
+    k: &nd::CowArray<A, nd::IxDyn>,
+) -> nd::Array<A, nd::IxDyn>
 where
     A: std::ops::Mul<Output = A> + Copy + num_traits::Zero + fmt::Debug,
 {
     let ix_iter = iter_conv2d_slices(a.shape(), k.shape()).unwrap();
     let output_shape = &ix_iter.output_shape();
-    let output_shape = (output_shape[0], output_shape[1]);
     let iter_conv = ix_iter.map(|a_ix| {
         let a_slice = a.slice(a_ix);
         assert_eq!(
@@ -23,10 +25,8 @@ where
         let m_mul = &a_slice * k;
         m_mul.sum()
     });
-    nd::Array::from_iter(iter_conv)
-        .to_shape(output_shape)
-        .unwrap()
-        .into_owned()
+    let elements: Vec<A> = iter_conv.collect();
+    nd::ArrayD::from_shape_vec(nd::IxDyn(output_shape), elements).unwrap()
 }
 
 /// Produce iterator that yields sliding slice indexes that can be used for convolution.
@@ -202,8 +202,9 @@ mod tests {
     fn test_convolve_two_matrices_2d() {
         let a = new_arr_inc_i32(5, 4);
         let k = new_arr_inc_i32(2, 3);
-        let actual: ndarray::ArrayBase<ndarray::OwnedRepr<i32>, ndarray::Dim<[usize; 2]>> =
-            conv2d(&a, &k);
+        let a: nd::CowArray<_, nd::IxDyn> = a.into();
+        let k: nd::CowArray<_, nd::IxDyn> = k.into();
+        let actual = conv2d(&a, &k);
         // a
         // [[0, 1, 2, 3],
         //  [4, 5, 6, 7],
@@ -231,7 +232,7 @@ mod tests {
             "a\n{:?}\nk\n{:?}\nactual\n{:?}\nexpected\n{:?}",
             &a, &k, actual, expected
         );
-        assert_eq!(actual, expected);
+        assert_eq!(actual.into_dimensionality::<nd::Ix2>().unwrap(), expected);
     }
 
     fn dot<F, const N: usize>(a: [F; N], b: [F; N]) -> F
@@ -250,15 +251,15 @@ mod tests {
         nd::Ix2(r, c)
     }
 
-    //fn shape(r: usize, c: usize) -> nd::IxDyn {
-    //    nd::IxDyn(&[r, c])
-    //}
-
-    fn new_arr_inc_i32(nrows: usize, ncols: usize) -> nd::Array2<i32> {
-        nd::Array2::from_shape_fn(shape2(nrows, ncols), |(ir, ic)| (ir * ncols + ic) as i32)
+    fn new_arr_inc_i32(nrows: usize, ncols: usize) -> nd::ArrayD<i32> {
+        nd::ArrayD::from_shape_fn(shape(nrows, ncols), |d| (d[0] * ncols + d[1]) as i32)
     }
 
     fn new_arr_inc_f32(nrows: usize, ncols: usize) -> nd::Array2<f32> {
         nd::Array2::from_shape_fn(shape2(nrows, ncols), |(ir, ic)| (ir * ncols + ic) as f32)
+    }
+
+    fn shape(r: usize, c: usize) -> nd::IxDyn {
+        nd::IxDyn(&[r, c])
     }
 }

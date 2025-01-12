@@ -1,10 +1,10 @@
-test: clean_csv
-	cargo test
+test:
+	just test
 build:
-	cargo build
+	just build
 clean_csv:
-	rm -fv *.csv || true
-clean: clean_csv
-	rm -rf target || true
+	just clean_csv
+clean:
+	just clean
 marimo:
-	marimo edit scripts/plot_failed.py
+	just marimo

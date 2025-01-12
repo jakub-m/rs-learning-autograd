@@ -77,9 +77,6 @@ impl Calculator<NaOperAry1, NaOperAry2, MatrixF32> for MatrixCalculator {
                         (MatrixF32::V(v1), MatrixF32::V(v2)) => MatrixF32::V(v1 - v2),
                     },
                     NaOperAry2::MulComp => &a * &b,
-                    //NaOperAry1::Conv2d => {
-                    //    todo!();
-                    //}
                     NaOperAry2::Conv2d => {
                         let primal = a.m().expect(
                             format!(
@@ -97,17 +94,10 @@ impl Calculator<NaOperAry1, NaOperAry2, MatrixF32> for MatrixCalculator {
                             )
                             .as_str(),
                         );
-
-                        let v = conv2d(
-                            &primal
-                                .to_shape(nd::Ix2(primal.shape()[0], primal.shape()[1]))
-                                .unwrap(),
-                            &kernel
-                                .to_shape(nd::Ix2(kernel.shape()[0], kernel.shape()[1]))
-                                .unwrap()
-                                .to_owned(),
-                        );
-                        todo!();
+                        let primal = nd::CowArray::from(primal);
+                        let kernel = nd::CowArray::from(kernel);
+                        let v = conv2d(&primal, &kernel);
+                        MatrixF32::new_m(v)
                     }
                 }
             }
@@ -169,6 +159,15 @@ impl Calculator<NaOperAry1, NaOperAry2, MatrixF32> for MatrixCalculator {
         }
     }
 }
+
+///// TODO: if to_shape involves cloning, then this is a performance drag.
+//fn arrayd_to_cow2d<A>(a: &nd::ArrayD<A>) -> &nd::CowArray<A, nd::Ix2>
+////where
+////    A: Clone,
+//{
+//    let new_shape = nd::Ix2(a.shape()[0], a.shape()[1]);
+//    a.to_shape(new_shape).unwrap().into()
+//}
 
 trait Relu {
     fn relu(&self) -> Self;
