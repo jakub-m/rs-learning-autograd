@@ -1,6 +1,5 @@
 use ndarray::s;
-use ndarray::{self as nd, Shape};
-use std::process::Output;
+use ndarray::{self as nd};
 use std::{fmt, ops};
 
 use super::conv_iter::V2;
@@ -32,6 +31,8 @@ where
 
 /// Take the window of size `k_shape` (e.g. kernel), slide it along matrix `a` and sum all the values in the window.
 /// The implementation does not literally slide the window and sum the values, but instead does it in two swipes.
+///
+/// TODO Remove.
 fn sliding_sum<A>(a: &nd::Array<A, nd::Ix2>, k_shape: &[usize]) -> nd::Array<A, nd::Ix2>
 where
     A: Copy + fmt::Debug,
@@ -101,7 +102,7 @@ fn iter_conv2d_slices(
 /// * `a` - the input matrix.
 /// * `k` - the kernel matrix.
 /// * `adv` - the adjoin from the upstream (reverse mode).
-fn conv2d_adjoin<A>(
+pub fn conv2d_adjoin<A>(
     a: &nd::Array2<A>,
     k: &nd::Array2<A>,
     adv: &nd::Array2<A>,

@@ -13,7 +13,6 @@ pub enum NaOperAry1 {
     PowI(i32),
     /// Add all the elements of the matrix and return a single value.
     Sum,
-    Conv2d,
 }
 
 impl Operator for NaOperAry1 {}
@@ -24,6 +23,7 @@ pub enum NaOperAry2 {
     Sub,
     // Element-wise multiplication.
     MulComp,
+    Conv2d,
 }
 
 impl Operator for NaOperAry2 {}
@@ -34,7 +34,6 @@ impl fmt::Display for NaOperAry1 {
             NaOperAry1::Relu => "relu".to_owned(),
             NaOperAry1::PowI(p) => format!("pow{}", p),
             NaOperAry1::Sum => "sum".to_owned(),
-            NaOperAry1::Conv2d => "conv2d[3x3]".to_owned(),
         };
         write!(f, "{}", s)
     }
@@ -46,6 +45,7 @@ impl fmt::Display for NaOperAry2 {
             NaOperAry2::Add => " + ",
             NaOperAry2::Sub => " - ",
             NaOperAry2::MulComp => " .* ",
+            NaOperAry2::Conv2d => "conv2d",
         };
         write!(f, "{}", s)
     }
@@ -163,8 +163,8 @@ impl<'a> ExprMatrix<'a> {
         self.register_and_continue_expr(node)
     }
 
-    pub fn conv2d(&self) -> ExprMatrix<'a> {
-        let node = ExprNode::Ary1(NaOperAry1::Conv2d, self.ident);
+    pub fn conv2d(&self, kernel: ExprMatrix<'a>) -> ExprMatrix<'a> {
+        let node = ExprNode::Ary2(NaOperAry2::Conv2d, self.ident, kernel.ident);
         self.register_and_continue_expr(node)
     }
 }
@@ -209,6 +209,7 @@ mod tests {
         let a = eb.new_variable("a");
         let b = eb.new_variable("b");
         let c = a + b;
+        let a = a + a;
         assert_eq!("(a + b)", format!("{}", c));
     }
 

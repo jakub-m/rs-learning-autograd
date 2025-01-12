@@ -26,7 +26,8 @@ fn test_conv2d_5x5_forward() {
 
     let eb = new_eb();
     let x = eb.new_variable("x");
-    let y = x.conv2d();
+    let k = eb.new_variable("k");
+    let y = x.conv2d(k);
     // let p0 = eb.new_named_parameter("p0", get_init_param());
     // let p1 = eb.new_named_parameter("p1", get_init_param());
     // let y = ((x - p0).relu() * p1).sum();

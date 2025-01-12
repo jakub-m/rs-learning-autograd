@@ -43,17 +43,6 @@ impl Calculator<NaOperAry1, NaOperAry2, MatrixF32> for MatrixCalculator {
                         MatrixF32::M(m) => MatrixF32::V(m.as_ref().sum()),
                         MatrixF32::V(_) => primal,
                     },
-                    NaOperAry1::Conv2d => {
-                        let primal = primal.m().expect(
-                            format!(
-                                "Expected matrix as input to Conv2d {:?} but got {:?}",
-                                cg.get_name(ident),
-                                primal
-                            )
-                            .as_str(),
-                        );
-                        todo!();
-                    }
                 }
             }
             Node::Ary2 {
@@ -87,6 +76,18 @@ impl Calculator<NaOperAry1, NaOperAry2, MatrixF32> for MatrixCalculator {
                         (MatrixF32::V(v1), MatrixF32::V(v2)) => MatrixF32::V(v1 - v2),
                     },
                     NaOperAry2::MulComp => &a * &b,
+                    //NaOperAry1::Conv2d => {
+                    //    let primal = primal.m().expect(
+                    //        format!(
+                    //            "Expected matrix as input to Conv2d {:?} but got {:?}",
+                    //            cg.get_name(ident),
+                    //            primal
+                    //        )
+                    //        .as_str(),
+                    //    );
+                    //    todo!();
+                    //}
+                    NaOperAry2::Conv2d => todo!(),
                 }
             }
         }
@@ -121,7 +122,6 @@ impl Calculator<NaOperAry1, NaOperAry2, MatrixF32> for MatrixCalculator {
                 NaOperAry1::Sum => {
                     self.backward(cg, &v1, adjoin);
                 }
-                NaOperAry1::Conv2d => todo!(),
             },
             Node::Ary2 {
                 oper: op,
@@ -143,6 +143,7 @@ impl Calculator<NaOperAry1, NaOperAry2, MatrixF32> for MatrixCalculator {
                     self.backward(cg, &v1, &(adjoin * &v2_p));
                     self.backward(cg, &v2, &(adjoin * &v1_p));
                 }
+                NaOperAry2::Conv2d => todo!(),
             },
         }
     }
