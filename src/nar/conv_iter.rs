@@ -1,18 +1,20 @@
 use core::fmt;
 use std::ops;
 
+/// A 2 dimensional vector.
 #[derive(Clone, Copy, Debug, PartialEq)]
-struct Ix2(usize, usize);
+pub struct V2(pub usize, pub usize);
 
-impl Ix2 {
-    fn iter(&self) -> IndicesIterator {
-        IndicesIterator {
-            curr: Ix2(0, 0),
+impl V2 {
+    pub fn iter(&self) -> V2Iterator {
+        V2Iterator {
+            curr: V2(0, 0),
             last: self.clone(),
         }
     }
 
-    fn contains(&self, other: Ix2) -> Option<Ix2> {
+    /// Check if `other` is within the box between point (0, 0) and `self.
+    pub fn contains(&self, other: V2) -> Option<V2> {
         if self.0 >= other.0 && self.1 >= other.1 {
             Some(other)
         } else {
@@ -20,10 +22,10 @@ impl Ix2 {
         }
     }
 
-    fn try_sub(&self, other: Ix2) -> Option<Ix2> {
+    fn try_sub(&self, other: V2) -> Option<V2> {
         // self - other
         if (self.0 >= other.0) & (self.1 >= other.1) {
-            Some(Ix2(self.0 - other.0, self.1 - other.1))
+            Some(V2(self.0 - other.0, self.1 - other.1))
         } else {
             None
         }
@@ -31,13 +33,13 @@ impl Ix2 {
 }
 
 #[derive(Debug, PartialEq)]
-struct IndicesIterator {
-    curr: Ix2,
-    last: Ix2,
+pub struct V2Iterator {
+    curr: V2,
+    last: V2,
 }
 
-impl Iterator for IndicesIterator {
-    type Item = Ix2;
+impl Iterator for V2Iterator {
+    type Item = V2;
 
     fn next(&mut self) -> Option<Self::Item> {
         let ret = self.curr;
@@ -53,16 +55,16 @@ impl Iterator for IndicesIterator {
     }
 }
 
-impl ops::Add for Ix2 {
-    type Output = Ix2;
+impl ops::Add for V2 {
+    type Output = V2;
 
     fn add(self, other: Self) -> Self::Output {
-        Ix2(self.0 + other.0, self.1 + other.1)
+        V2(self.0 + other.0, self.1 + other.1)
     }
 }
 
-impl ops::Sub for Ix2 {
-    type Output = Ix2;
+impl ops::Sub for V2 {
+    type Output = V2;
 
     fn sub(self, other: Self) -> Self::Output {
         self.try_sub(other)
@@ -70,7 +72,7 @@ impl ops::Sub for Ix2 {
     }
 }
 
-impl fmt::Display for Ix2 {
+impl fmt::Display for V2 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "[{} {}]", self.0, self.1)
     }
@@ -78,61 +80,27 @@ impl fmt::Display for Ix2 {
 
 #[cfg(test)]
 mod tests {
-    use super::Ix2;
+    use super::V2;
     #[test]
     fn test_iter_indices_1x1() {
-        let ix = Ix2(1, 1);
-        let mut actual: Vec<Ix2> = Vec::new();
+        let ix = V2(1, 1);
+        let mut actual: Vec<V2> = Vec::new();
         for i in ix.iter() {
             actual.push(i)
         }
-        assert_eq!(actual, vec![Ix2(0, 0),]);
+        assert_eq!(actual, vec![V2(0, 0),]);
     }
 
     #[test]
     fn test_iter_indices_3x2() {
-        let ix = Ix2(3, 2);
-        let mut actual: Vec<Ix2> = Vec::new();
+        let ix = V2(3, 2);
+        let mut actual: Vec<V2> = Vec::new();
         for i in ix.iter() {
             actual.push(i)
         }
         assert_eq!(
             actual,
-            vec![
-                Ix2(0, 0),
-                Ix2(0, 1),
-                Ix2(1, 0),
-                Ix2(1, 1),
-                Ix2(2, 0),
-                Ix2(2, 1),
-            ]
+            vec![V2(0, 0), V2(0, 1), V2(1, 0), V2(1, 1), V2(2, 0), V2(2, 1),]
         );
-    }
-
-    #[test]
-    fn test_iter_conv() {
-        let a = Ix2(4, 5);
-        let k = Ix2(2, 3);
-        let v = a - k + Ix2(1, 1); // size of the convoluted matrix.
-        for ix_v in v.iter() {
-            for ix_k in a.iter() {
-                // calculate dv/dk for convolution v=conv(a, k)
-                // for dv(ix_v)/dk(ix_k) where ix_v == ix_a,
-                // dv/dk = a(ix_v + ix_k)
-                if let Some(ix_da) = k.contains(ix_v + ix_k) {
-                    // Update adjoin of K with a(ix_da) * upstream adjoin up(ix_dv)
-                    // ...
-                    eprintln!("dv{}/dk{} = a{}", ix_v, ix_k, ix_da)
-                }
-                // while here, calculate also dv/da since
-                // dv(ix_v)/da(ix_a+ix_k) = k(ix_k)
-                {
-                    if let Some(ix_da) = a.contains(ix_v + ix_k) {
-                        // Update adjoin of A(ix_da) with K(ix_k) * upstream adjoin up(ix_dv)
-                        // eprintln!("dv{}/da{} = k{}", ix_v, ix_da, ix_k)
-                    }
-                }
-            }
-        }
     }
 }

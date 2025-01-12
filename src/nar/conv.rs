@@ -1,6 +1,9 @@
-use ndarray as nd;
 use ndarray::s;
+use ndarray::{self as nd, Shape};
+use std::process::Output;
 use std::{fmt, ops};
+
+use super::conv_iter::V2;
 
 /// Convolve two 2d matrices into a single 2d matrix. `k` is the kernel matrix.
 #[allow(dead_code)]
@@ -93,17 +96,42 @@ fn iter_conv2d_slices(
     })
 }
 
-// Given `v = conv(a, k)`, where `k` is a kernel, calculate `dv/da` and `dv/dk`, returned in that order.
-// # Arguments
-// * `a` - the input matrix
-// * `k` - the kernel matrix
-// * `adv` - the adjoin from the upstream.
+/// Given `v = convolute(a, k)`, where `k` is a kernel, calculate `dv/da` and `dv/dk`, returned in that order.
+/// # Arguments
+/// * `a` - the input matrix.
+/// * `k` - the kernel matrix.
+/// * `adv` - the adjoin from the upstream (reverse mode).
 fn conv2d_adjoin<A>(
-    a: nd::Array2<A>,
-    k: nd::Array2<A>,
-    adv: nd::Array2<A>,
-) -> (nd::Array2<A>, nd::Array2<A>) {
-    todo!()
+    a: &nd::Array2<A>,
+    k: &nd::Array2<A>,
+    adv: &nd::Array2<A>,
+) -> (nd::Array2<A>, nd::Array2<A>)
+where
+    A: ops::Mul<Output = A>,
+    A: Clone + Copy,
+    A: num_traits::Zero,
+    A: PartialEq,
+{
+    let a_size = a.shape().into_v2d();
+    let mut dv_dk: nd::Array2<A> = nd::Array2::zeros(adv.raw_dim());
+    let mut dv_da: nd::Array2<A> = nd::Array2::zeros(a.raw_dim());
+    for adv_ix in adv.shape().into_v2d().iter() {
+        // Iterate over every cell of the adjoin, and calculate what's the contribution of `k` and `a`.
+        if adv[adv_ix.as_ix()] == A::zero() {
+            continue;
+        }
+        for k_ix in k.shape().into_v2d().iter() {
+            // Iterate over each kernel cell and at the same time calculate `dv/dk` and `dv/da`.
+            if let Some(a_ix) = a_size.contains(adv_ix + k_ix) {
+                let adv_ix = adv_ix.as_ix();
+                let a_ix = a_ix.as_ix();
+                let k_ix = k_ix.as_ix();
+                dv_dk[adv_ix] = dv_dk[adv_ix] + a[a_ix] * adv[adv_ix];
+                dv_da[a_ix] = dv_da[a_ix] + k[k_ix] + adv[adv_ix];
+            }
+        }
+    }
+    (dv_da, dv_dk)
 }
 
 #[derive(Debug)]
@@ -112,6 +140,27 @@ struct BadShapeError(String);
 impl BadShapeError {
     fn from_string(message: String) -> BadShapeError {
         BadShapeError(message)
+    }
+}
+
+trait V2Helper {
+    fn into_v2d(&self) -> V2;
+}
+
+impl V2Helper for &[usize] {
+    /// Convert nd array shape to V2
+    fn into_v2d(&self) -> V2 {
+        V2(self[0], self[1])
+    }
+}
+
+trait ShapeHelper {
+    fn as_ix(&self) -> [usize; 2];
+}
+
+impl ShapeHelper for V2 {
+    fn as_ix(&self) -> [usize; 2] {
+        [self.0, self.1]
     }
 }
 
