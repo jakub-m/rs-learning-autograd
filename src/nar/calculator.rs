@@ -4,6 +4,7 @@ use super::syntax::{MatrixF32, NaOperAry1, NaOperAry2};
 use crate::{
     compute::{Calculator, ComputGraph, Node},
     core_syntax::Ident,
+    nar::conv::conv2d,
 };
 use ndarray as nd;
 //use nalgebra as _na;
@@ -77,17 +78,37 @@ impl Calculator<NaOperAry1, NaOperAry2, MatrixF32> for MatrixCalculator {
                     },
                     NaOperAry2::MulComp => &a * &b,
                     //NaOperAry1::Conv2d => {
-                    //    let primal = primal.m().expect(
-                    //        format!(
-                    //            "Expected matrix as input to Conv2d {:?} but got {:?}",
-                    //            cg.get_name(ident),
-                    //            primal
-                    //        )
-                    //        .as_str(),
-                    //    );
                     //    todo!();
                     //}
-                    NaOperAry2::Conv2d => todo!(),
+                    NaOperAry2::Conv2d => {
+                        let primal = a.m().expect(
+                            format!(
+                                "Expected matrix as input to Conv2d {:?} but got {:?}",
+                                cg.get_name(ident),
+                                a
+                            )
+                            .as_str(),
+                        );
+                        let kernel = b.m().expect(
+                            format!(
+                                "Expected matrix as a kernel to Conv2d {:?} but got {:?}",
+                                cg.get_name(ident),
+                                b
+                            )
+                            .as_str(),
+                        );
+
+                        let v = conv2d(
+                            &primal
+                                .to_shape(nd::Ix2(primal.shape()[0], primal.shape()[1]))
+                                .unwrap(),
+                            &kernel
+                                .to_shape(nd::Ix2(kernel.shape()[0], kernel.shape()[1]))
+                                .unwrap()
+                                .to_owned(),
+                        );
+                        todo!();
+                    }
                 }
             }
         }
