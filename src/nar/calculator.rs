@@ -344,6 +344,35 @@ mod tests {
     }
 
     #[test]
+    fn forward_conv() {
+        let eb = new_eb();
+        let a = eb.new_variable("a");
+        let k = eb.new_variable("k");
+        let y = a.conv2d(k);
+        let [a, k, y] = [a, k, y].map(|p| p.ident);
+        let mut cb = new_cb(eb);
+        cb.set_variable(
+            &a,
+            nd::ArrayD::from_shape_vec(sh(5, 4), (0..20).map(|i| i as f32).collect())
+                .unwrap()
+                .into(),
+        );
+        cb.set_variable(
+            &k,
+            nd::ArrayD::from_shape_vec(sh(2, 3), (0..6).map(|i| i as f32).collect())
+                .unwrap()
+                .into(),
+        );
+        let y = cb.forward(&y);
+        // Those values are calculated in more details in tests in conv.rs
+        let expected: Vec<f32> = vec![67., 82., 127., 142., 187., 202., 247., 262.];
+        assert_eq!(
+            y.m(),
+            Some(&nd::ArrayD::from_shape_vec(sh(4, 2), expected).unwrap())
+        );
+    }
+
+    #[test]
     fn backward_add_mul() {
         let eb = new_eb();
         let a = eb.new_variable("a");
@@ -468,5 +497,8 @@ mod tests {
 
     fn sh2x2() -> nd::IxDyn {
         nd::IxDyn(&[2, 2])
+    }
+    fn sh(nrows: usize, ncols: usize) -> nd::IxDyn {
+        nd::IxDyn(&[nrows, ncols])
     }
 }
